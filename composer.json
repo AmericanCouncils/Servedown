@@ -1,0 +1,22 @@
+{
+    "name": "ac/servedown",
+    "description": "A utility library to help serve directories of markdown content on the web.",
+    "keywords": ["markdown"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Evan Villemez",
+            "email": "evan.villemez@americancouncils.org"
+        }
+    ],
+    "autoload" : {
+        "psr-0": {
+            "AC\\Servedown\\": ""
+        }
+    },
+    "target-dir": "AC/Servedown",
+    "minimum-stability": "dev",
+    "require": {
+        "symfony/yaml": "2.1.*"
+    }
+}
