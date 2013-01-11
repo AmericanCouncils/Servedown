@@ -7,26 +7,26 @@ use AC\Servedown\File;
 class FileTest extends \PHPUnit_Framework_TestCase
 {
 
-	public function testInstantiate()
-	{
-		$f = new File(__DIR__."/mock_content/test.md");
+    public function testInstantiate()
+    {
+        $f = new File(__DIR__."/mock_content/test.md");
         $this->assertNotNull($f);
         $this->assertTrue($f instanceof File);
-	}
-    
+    }
+
     public function testGetAndSetConfig()
     {
         $f = new File(__DIR__."/mock_content/test.md");
         $this->assertSame(array(), $f->getConfig());
         $defaultTitle = "nothing";
         $this->assertSame($defaultTitle, $f->get('title', $defaultTitle));
-        
+
         $f = new File(__DIR__."/mock_content/test_with_config.md");
         $this->assertSame("Test File", $f->get('title'));
         $f->set('title', "changed");
         $this->assertSame('changed', $f->get('title'));
         $this->assertFalse($f->get('foo', false));
-        
+
         $f->setConfig(array(
             'title' => 'changed again',
             'foo' => true
@@ -34,7 +34,7 @@ class FileTest extends \PHPUnit_Framework_TestCase
         $this->assertSame('changed again', $f->get('title'));
         $this->assertTrue($f->get('foo', false));
     }
-    
+
     public function testGetContent()
     {
         $f = new File(__DIR__."/mock_content/test.md");
@@ -45,15 +45,15 @@ This is test content.
 EOF;
         $this->assertSame($expected, $f->getContent());
     }
-        
+
     public function testGetRaw()
     {
         $f = new File(__DIR__."/mock_content/test_with_config.md");
-        
+
         $expected = file_get_contents($f->getPath());
         $this->assertSame($expected, $f->getRaw());
     }
-    
+
     public function testGetAndSetBreadcrumbData()
     {
         $f = new File(__DIR__."/mock_content/test.md");

@@ -30,12 +30,12 @@ class File
     {
         $this->path = $path;
     }
-    
+
     public function __toString()
     {
         return $this->content;
     }
-    
+
     /**
      * Get the path to the file for this object.
      *
@@ -57,7 +57,7 @@ class File
 
         return $this->config;
     }
-    
+
     public function setConfig(array $config)
     {
         $this->config = $config;
@@ -116,12 +116,12 @@ class File
 
         return $this->raw;
     }
-    
+
     public function getBreadcrumbData()
     {
         return $this->breadcrumb;
     }
-    
+
     public function setBreadcrumbData(array $data)
     {
         $this->breadcrumb = $data;
