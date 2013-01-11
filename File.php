@@ -161,8 +161,8 @@ class File
             }
 
             $this->raw = implode('', $data);
-            $this->content = $this->content = implode('', $content);
-            $this->config = Yaml::parse($this->data['header']);
+            $this->content = implode('', $content);
+            $this->config = !empty($header) ? Yaml::parse(implode('', $header)) : array();
         }
 
         $this->loaded = true;

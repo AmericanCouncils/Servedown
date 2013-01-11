@@ -42,35 +42,33 @@ class FileTest extends \PHPUnit_Framework_TestCase
 # Test #
 
 This is test content.
-
 EOF;
         $this->assertSame($expected, $f->getContent());
     }
-    
-    public function testIsDirectory()
-    {
         
-    }
-    
     public function testGetRaw()
     {
         $f = new File(__DIR__."/mock_content/test_with_config.md");
         
-        $expected = <<<EOF
-````
-title: Test File
-````
-# Test #
-
-This is test content.
-EOF;
+        $expected = file_get_contents($f->getPath());
         $this->assertSame($expected, $f->getRaw());
-    }    
+    }
     
     public function testGetAndSetBreadcrumbData()
     {
         $f = new File(__DIR__."/mock_content/test.md");
         $this->assertSame(array(), $f->getBreadcrumbData());
+        $expected = array(
+            'title' => "Foo",
+            'url' => "Foo",
+        );
+        $f->setBreadcrumbData($expected);
+        $this->assertSame($expected, $f->getBreadcrumbData());
     }
 
+    public function testIsDirectory()
+    {
+        //start here
+        $this->assertTrue(false);
+    }
 }

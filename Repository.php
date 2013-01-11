@@ -54,7 +54,6 @@ class Repository
         $path = $this->validatePath($path);
         
         $file = new File($path);
-        $file->setRepository($this);
         
         //TODO: load containing directories and merge configs
         

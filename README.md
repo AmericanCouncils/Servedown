@@ -29,8 +29,8 @@ Here is some basic example usage.
     //get a specific file
     $file = $repo->getPath("2012/using-servedown.md");
     
-    //get directory
-    $files = $repo->getFilesInPath("2012/");
+    //get directory contents
+    $files = $repo->getFilesInDirectory("2012/");
     
     //get breadcrumb info
     $breadcrumbData = $file->getBreadcrumbData();
