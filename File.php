@@ -20,19 +20,26 @@ class File
     private $content = null;
     private $loaded = false;
     private $breadcrumb = array();
+    private $isDirectory = false;
 
     /**
      * Constructor, builds a page object around a path to a real file.
      *
-     * @param string $path
+     * @param string|SplFileObject $info
      */
-    public function __construct($path)
+    public function __construct($info)
     {
-        $this->path = $path;
+        $this->path = (is_string($info)) ? $info : $info->getRealpath();
+
+        if (!file_exists($this->path)) {
+            throw new \InvalidArgumentException(sprintf("File does not exist: [%s]!", $path));
+        }        
     }
 
     public function __toString()
     {
+        $this->load();
+        
         return $this->content;
     }
 
@@ -60,6 +67,8 @@ class File
 
     public function setConfig(array $config)
     {
+        $this->load();
+        
         $this->config = $config;
     }
 
@@ -119,11 +128,15 @@ class File
 
     public function getBreadcrumbData()
     {
+        $this->load();
+
         return $this->breadcrumb;
     }
 
     public function setBreadcrumbData(array $data)
     {
+        $this->load();
+
         $this->breadcrumb = $data;
     }
 
@@ -135,14 +148,27 @@ class File
      */
     public function isDirectory()
     {
-        $exp = explode(DIRECTORY_SEPARATOR, $this->path);
-
-        return ('index.md' === end($exp) || is_dir($this->path));
+        return $this->isDirectory;
+    }
+    
+    /**
+     * Set whether or not this file is also a directory reference.  This must be
+     * set by the Repository, as it is configurable.
+     *
+     * @param string $isDir 
+     */
+    public function setIsDirectory($isDir)
+    {
+        $this->isDirectory = (bool) $isDir;
     }
 
+    /**
+     * This actually loads and parses file contents from disc.  It would probably
+     * be much more efficient to implement this in a regex.
+     */
     protected function load()
     {
-        if (!$this->loaded && !$this->isDirectory()) {
+        if (!$this->loaded) {
             $data = file($this->path);
             $inHeader = false;
             $header = array();

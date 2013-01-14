@@ -27,7 +27,7 @@ Here is some basic example usage.
     ));
     
     //get a specific file
-    $file = $repo->getPath("2012/using-servedown.md");
+    $file = $repo->getFile("2012/using-servedown.md");
     
     //get directory contents
     $files = $repo->getFilesInDirectory("2012/");
@@ -80,8 +80,23 @@ Here a few examples of content and configuration.
 
 ### Example Page ###
 
+Each page can contain a header of metadata in *YAML* format.  Here's an example markdown page with configuration.
 
+    ````
+    title: An Example Page
+    published: true
+    ````
+    # Hello World #
+    
+    This is your typical markdown content.
 
 ### Example Directory Override ###
 
-You can also configure directories by specifying an `index` file.
+You can also configure directories by specifying an `index` file.  For example, this could be specified in an `index.md`, and all files
+contained in that, and contained directories, would return `false` from `$page->get('published');`.  The directories don't need to specify
+any actual content, though you can if you wish.
+
+    ````
+    published: false
+    ````
+    

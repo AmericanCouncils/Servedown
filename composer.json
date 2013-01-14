@@ -17,6 +17,7 @@
     "target-dir": "AC/Servedown",
     "minimum-stability": "dev",
     "require": {
-        "symfony/yaml": "2.1.*"
+        "symfony/yaml": "2.1.*",
+        "symfony/finder": "2.1.*"
     }
 }

@@ -44,6 +44,7 @@ class FileTest extends \PHPUnit_Framework_TestCase
 This is test content.
 EOF;
         $this->assertSame($expected, $f->getContent());
+        $this->assertSame($expected, (string) $f);
     }
 
     public function testGetRaw()
@@ -68,7 +69,10 @@ EOF;
 
     public function testIsDirectory()
     {
-        //start here
-        $this->assertTrue(false);
+        $f = new File(__DIR__."/mock_content/test.md");
+        
+        $this->assertFalse($f->isDirectory());
+        $f->setIsDirectory(true);
+        $this->assertTrue($f->isDirectory());
     }
 }
