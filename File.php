@@ -32,8 +32,12 @@ class File
         $this->path = (is_string($info)) ? $info : $info->getRealpath();
 
         if (!file_exists($this->path)) {
-            throw new \InvalidArgumentException(sprintf("File does not exist: [%s]!", $path));
-        }        
+            throw new \InvalidArgumentException(sprintf("Path does not exist: [%s]!", $path));
+        }
+        
+        if (is_dir($this->path)) {
+            $this->setIsDirectory(true);
+        }
     }
 
     public function __toString()
@@ -126,6 +130,11 @@ class File
         return $this->raw;
     }
 
+    /**
+     * Return array of breadcrumb data.
+     *
+     * @return array
+     */
     public function getBreadcrumbData()
     {
         $this->load();
@@ -133,6 +142,17 @@ class File
         return $this->breadcrumb;
     }
 
+    /**
+     * Set array of breadcrumb data, format is array of hashes, example below:
+     *
+     *  array(
+     *      'title' => "Human Readable String",
+     *      'url' => "http://example.com"
+     *  )
+     *
+     *
+     * @param array $data 
+     */
     public function setBreadcrumbData(array $data)
     {
         $this->load();
@@ -155,7 +175,7 @@ class File
      * Set whether or not this file is also a directory reference.  This must be
      * set by the Repository, as it is configurable.
      *
-     * @param string $isDir 
+     * @param boolean $isDir 
      */
     public function setIsDirectory($isDir)
     {
@@ -168,7 +188,7 @@ class File
      */
     protected function load()
     {
-        if (!$this->loaded) {
+        if (!$this->loaded && !is_dir($this->path)) {
             $data = file($this->path);
             $inHeader = false;
             $header = array();

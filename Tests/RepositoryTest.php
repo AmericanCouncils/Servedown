@@ -19,7 +19,7 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
     {
         $r = new Repository(__DIR__."/mock_content");
         $expected = array(
-            'title' => "mock_content",
+            'title' => "Mock Content",
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
@@ -35,7 +35,7 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         );
         $r = new Repository(__DIR__."/mock_content", $overrides);
         $expected = array(
-            'title' => "mock_content",
+            'title' => "Mock Content",
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
@@ -71,14 +71,56 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         $r = new Repository(__DIR__."/mock_content");
         $files = $r->getFilesInDirectory('nested/');
         
+        $this->assertSame(5, count($files));
+        
         foreach ($files as $file) {
             $this->assertTrue($f instanceof File);
-            $this->assertTrue(file_exists($f->getPath()));
+            $this->assertTrue(file_exists($file->getPath()));
+            if ($file->isDirectory()) {
+                $this->assertTrue(is_dir($file->getPath()));
+            }
         }
+    }
+    
+    public function testDefaultTitleTransformer()
+    {
+        $r = new Repository(__DIR__."/mock_content");
+        $transformer = $r->getTitleTransformer();
+        $this->assertSame("Mock Content", $transformer("mock_content"));
+    }
+    
+    public function testIgnoresHiddenDirectories()
+    {
+        
+    }
+    
+    public function testIgnoresFileExtensions()
+    {
+        
+    }
+    
+    public function testCreatesBreadcrumb()
+    {
+        
+    }
+    
+    public function testCreatesBreadcrumbWithIndexOverride()
+    {
+        
+    }
+    
+    public function testCreatesBreadcrumbWithAbsoluteUrls()
+    {
+        
+    }
+    
+    public function testIndexFileIsDirectory()
+    {
+        
     }
 
     public function testCascadingConfig()
     {
-        
+        $this->assertTrue(file_exists(__DIR__));
     }
 }

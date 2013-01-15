@@ -75,4 +75,11 @@ EOF;
         $f->setIsDirectory(true);
         $this->assertTrue($f->isDirectory());
     }
+    
+    public function testGetDirectory()
+    {
+        $f = new File(__DIR__."/mock_content");
+        $this->assertTrue($f->isDirectory());
+        $this->assertEmpty($f->getContent());
+    }
 }

@@ -27,6 +27,23 @@ class Repository
      */
     private $config;
 
+    /**
+     * Internal cache of directory configs, to avoid hitting
+     * the disc too much
+     *
+     * @var array
+     */
+    private $dirCache = array();
+    
+    private $titleTransformer;
+
+    /**
+     * Construct needs the base directory, and optionally some
+     * configuration overrides.
+     *
+     * @param string $basePath Absolute path to root directory
+     * @param array $config Optional array of configuration overrides
+     */
     public function __construct($basePath, $config = array())
     {
         if (!is_dir($basePath)) {
@@ -35,6 +52,20 @@ class Repository
 
         $this->basePath = rtrim($basePath, DIRECTORY_SEPARATOR);
         $this->config = array_merge($this->getDefaultConfig(), $config);
+        
+        // this is the default method used to create human readable titles
+        // for breadcrumbs and contained files when no `title` config is present,
+        // override it if need be
+        $this->setTitleTransformer(function($path) {
+            $exp = explode(DIRECTORY_SEPARATOR, $path);
+            $end = end($exp);
+            $exp = explode(".", $end);
+            if (count($exp) > 1) {                
+                array_pop($exp);
+            }
+            array_walk($exp, function($val) { return ucfirst(strtolower($val)); });
+            return implode(" ", $exp);
+        });
     }
 
     public function getBasePath()
@@ -60,24 +91,26 @@ class Repository
         return $file;
     }
 
-    public function getFilesInPath($path)
+    public function getFilesInDirectory($path)
     {
         $path = $this->validatePath($path);
         $files = array();
 
-        //load files this repo is allowed to see
+        foreach ($this->createFinderForPath($path) as $file) {
+            $files[] = $this->getFile($file->getRealpath());
+        }
 
         return $files;
     }
     
-    
-    public function getPathContents($path)
+    public function setTitleTransformer(\Closure $func)
     {
-        $path = $this->validatePath($path);
-        
-        foreach (scandir($path) as $item) {
-            
-        }
+        $this->titleTransformer = $func;
+    }
+    
+    public function getTitleTransformer()
+    {
+        return $this->titleTransformer;
     }
 
     public function getConfig()
@@ -102,8 +135,10 @@ class Repository
 
     protected function getDefaultConfig()
     {
+        $transformer = $this->getTitleTransformer();
+
         return array(
-            'title' => $this->getTitleForPath($this->basePath),
+            'title' => $transformer($this->basePath),
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
@@ -118,20 +153,24 @@ class Repository
         $f = new File($path);
     }
     
-    protected function createFinderForDirectory($path)
+    protected function createFinderForDirectory($path, $recurse = false)
     {
         $finder = new Finder();
         $finder->in($path);
         
-        foreach ($this->get('file_extensions') as $ext) {
-            $finder->files()->name("*.$ext");
+        //ignore hidden directories
+        foreach ($this->get('hidden_directory_prefixes', array()) as $prefix) {
+            $finder->notName(sprintf("%s*", $prefix));
+        }
+
+        //only get allowed extensions
+        foreach ($this->get('file_extensions', array()) as $ext) {
+            $finder->name(sprintf("*.%s", $ext));
         }
         
-        foreach ($this->get('hidden_directory_prefixes') as $prefix) {
-            $finder->files->notName(sprintf("%s*", $prefix));
+        if (!$recurse) {
+            $finder->depth("== 0");
         }
-        
-        $finder->depth("== 0");
         
         return $finder;
     }
