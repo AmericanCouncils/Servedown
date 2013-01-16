@@ -35,8 +35,6 @@ class Repository
      */
     private $dirCache = array();
     
-    private $titleTransformer;
-
     /**
      * Construct needs the base directory, and optionally some
      * configuration overrides.
@@ -52,20 +50,6 @@ class Repository
 
         $this->basePath = rtrim($basePath, DIRECTORY_SEPARATOR);
         $this->config = array_merge($this->getDefaultConfig(), $config);
-        
-        // this is the default method used to create human readable titles
-        // for breadcrumbs and contained files when no `title` config is present,
-        // override it if need be
-        $this->setTitleTransformer(function($path) {
-            $exp = explode(DIRECTORY_SEPARATOR, $path);
-            $end = end($exp);
-            $exp = explode(".", $end);
-            if (count($exp) > 1) {                
-                array_pop($exp);
-            }
-            array_walk($exp, function($val) { return ucfirst(strtolower($val)); });
-            return implode(" ", $exp);
-        });
     }
 
     public function getBasePath()
@@ -77,40 +61,55 @@ class Repository
      * Factory method for files in a path.  Will check containing
      * directories to properly cascade configuration.
      *
-     * @param  string $path
+     * @param  string $path Relative path to file from root of repository
      * @return File
      */
     public function getFile($path)
     {
         $path = $this->validatePath($path);
-
+        
         $file = new File($path);
-
+        
+        
+        
         //TODO: load containing directories and merge configs
 
         return $file;
     }
 
-    public function getFilesInDirectory($path)
+    public function getFilesInDirectory($path, $includeIndex = false, $includeHiddenDirs = false)
     {
-        $path = $this->validatePath($path);
+        $file = $this->createFileForPath($path);
         $files = array();
 
-        foreach ($this->createFinderForPath($path) as $file) {
-            $files[] = $this->getFile($file->getRealpath());
+        foreach ($this->createFinderForDirectory($path) as $file) {
+            $files[] = $this->createFileForPath($file->getRealpath());
         }
 
         return $files;
     }
     
-    public function setTitleTransformer(\Closure $func)
+    /**
+     * This is the default method used to create human readable titles
+     * for breadcrumbs and contained files when no `title` config is present,
+     * override it if need be
+     *
+     * @param string $path 
+     * @return string
+     */
+    public function getDefaultTitle($path)
     {
-        $this->titleTransformer = $func;
-    }
-    
-    public function getTitleTransformer()
-    {
-        return $this->titleTransformer;
+        $exp = explode(DIRECTORY_SEPARATOR, $path);
+        $end = end($exp);
+        $exp = explode(".", $end);
+        if (count($exp) > 1) {                
+            array_pop($exp);
+        }
+        $exp = explode("_", implode("_", $exp));
+        array_walk($exp, function(&$val) {
+            $val = ucfirst(strtolower($val));
+        });
+        return implode(" ", $exp);
     }
 
     public function getConfig()
@@ -135,10 +134,8 @@ class Repository
 
     protected function getDefaultConfig()
     {
-        $transformer = $this->getTitleTransformer();
-
         return array(
-            'title' => $transformer($this->basePath),
+            'title' => $this->getDefaultTitle($this->basePath),
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
@@ -146,13 +143,6 @@ class Repository
         );
     }
 
-    protected function createFileForPath($path)
-    {
-        $path = $this->validatePath($path);
-        
-        $f = new File($path);
-    }
-    
     protected function createFinderForDirectory($path, $recurse = false)
     {
         $finder = new Finder();
@@ -180,17 +170,30 @@ class Repository
         return $path;
     }
 
-    protected function validatePath($path)
+    /**
+     * Creates the file for a given path, checking for whether or not it is a 
+     * directory index file.
+     *
+     * @param string $path 
+     * @return string
+     */
+    protected function createFileForPath($path)
     {
-        $path = $this->path.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR);
+        $path = (0 === strpos($path, DIRECTORY_SEPARATOR)) ? $this->basePath.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR) : $path;
         
-        //TODO: check if path is "servable"
-        
-        if (!file_exists($path)) {
-            throw new \InvalidArgumentException(sprintf("File not found: [%s]", $path));
+        //check for directory index file
+        if (is_dir($path) && $this->get('allow_directory_index', true)) {
+            foreach ($this->get('file_extensions', array()) as $ext) {
+                $p = $path.DIRECTORY_SEPARATOR.$this->get('index_name', 'index').".".$ext;
+                if (file_exists($p)) {
+                    $file = new File($p);
+                    $file->setIsDirectory(true);
+                    return $file;
+                }
+            }
         }
 
-        return $path;
+        return new File($path);
     }
 
 }

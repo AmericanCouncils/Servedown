@@ -60,10 +60,6 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         $this->assertNotNull($f);
         $this->assertTrue($f instanceof File);
         $this->assertFalse($f->isDirectory());
-        
-        $f = $r->getFile('nested/index.md');
-        $this->assertTrue($f->isDirectory());
-        
     }
 
     public function testGetFilesInDirectory()
@@ -82,23 +78,72 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         }
     }
     
-    public function testDefaultTitleTransformer()
+    public function testGetDefaultTitle()
     {
         $r = new Repository(__DIR__."/mock_content");
-        $transformer = $r->getTitleTransformer();
-        $this->assertSame("Mock Content", $transformer("mock_content"));
+        $this->assertSame("Mock Content", $r->getDefaultTitle(__DIR__."/mock_content.md"));
+        $this->assertSame("Mock Content", $r->getDefaultTitle(__DIR__."/mock_content"));
+        $this->assertSame("Test Path", $r->getDefaultTitle(__DIR__."/test.path.md"));
+        $this->assertSame("Testpath Again", $r->getDefaultTitle(__DIR__."/testPath_again.md"));
     }
     
     public function testIgnoresHiddenDirectories()
     {
-        
+        $r = new Repository(__DIR__."/mock_content");
+        foreach ($r->getFilesInDirectory(__DIR__."/mock_content") as $file) {
+            $this->assertTrue(false === strpos($file->getPath(), "_hidden"));
+        }
     }
     
     public function testIgnoresFileExtensions()
     {
-        
+        $r = new Repository(__DIR__."/mock_content");
+        foreach ($r->getFilesInDirectory(__DIR__."/mock_content") as $file) {
+            $this->assertTrue(false === strpos($file->getPath(), ".rtf"));
+        }
     }
     
+    public function testIgnoresIndexFile()
+    {
+        $r = new Repository(__DIR__."/mock_content");
+        $files = $r->getFilesInDirectory('nested');
+        $this->assertSame(4, count($files));
+        foreach ($r->getFilesInDirectory(__DIR__."/mock_content") as $file) {
+            $this->assertTrue(false === strpos($file->getPath(), "index"));
+        }
+    }
+        
+    public function testIndexFileIsDirectory()
+    {
+        $r = new Repository(__DIR__."/mock_content");
+        
+        $f1 = $r->getFile('nested/index.md');
+        $this->assertTrue($f1->isDirectory());
+        $this->assertTrue($f1->isIndex());
+        
+        $f2 = $r->getFile('nested');
+        $this->assertTrue($f2->isDirectory());
+        $this->assertTrue($f2->isIndex());
+        
+        $this->assertEquals($f1, $f2);
+
+        $f3 = $r->getfile('nested/more');
+        $this->assertTrue($f3->isDirectory());
+        $this->assertFalse($f3->isIndex());
+
+    }
+
+    public function testConfigCascadesFromDirectoryIndexFile()
+    {
+        $r = new Repository(__DIR__."/mock_content");
+//        $f = START HERE
+    }
+    
+    public function testConfigCascadesFromContainedDirectories()
+    {
+        
+    }
+
     public function testCreatesBreadcrumb()
     {
         
@@ -112,15 +157,5 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
     public function testCreatesBreadcrumbWithAbsoluteUrls()
     {
         
-    }
-    
-    public function testIndexFileIsDirectory()
-    {
-        
-    }
-
-    public function testCascadingConfig()
-    {
-        $this->assertTrue(file_exists(__DIR__));
     }
 }

@@ -76,6 +76,14 @@ EOF;
         $this->assertTrue($f->isDirectory());
     }
     
+    public function testIsIndex()
+    {
+        $f = new File(__DIR__."/mock_content/test.md");
+        $this->assertFalse($f->isIndex());
+        $f->setIsIndex(true);
+        $this->assertTrue($f->isIndex());
+    }
+    
     public function testGetDirectory()
     {
         $f = new File(__DIR__."/mock_content");

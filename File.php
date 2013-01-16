@@ -21,6 +21,7 @@ class File
     private $loaded = false;
     private $breadcrumb = array();
     private $isDirectory = false;
+    private $isIndex = false;
 
     /**
      * Constructor, builds a page object around a path to a real file.
@@ -177,9 +178,19 @@ class File
      *
      * @param boolean $isDir 
      */
-    public function setIsDirectory($isDir)
+    public function setIsDirectory($bool)
     {
-        $this->isDirectory = (bool) $isDir;
+        $this->isDirectory = (bool) $bool;
+    }
+
+    public function getIsIndex()
+    {
+        return $this->isIndex;
+    }
+
+    public function setIsIndex($bool)
+    {
+        $this->isIndex = (bool) $bool;
     }
 
     /**
