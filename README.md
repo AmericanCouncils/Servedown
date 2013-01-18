@@ -3,9 +3,9 @@
 This is a simple little utility to aid in serving markdown content on the web.  It provides code abstractions
 for directories of markdown files, each of which may optionally contain a *YAML* configuration header.
 
-There are only two classes to be aware of: `Repository` and `File`.  A `File` just encapsulates a file on disc,
+There are only two classes to be aware of: `Directory` and `File`.  A `File` just encapsulates a file on disc,
 and allows you to interact with the data in the configuration header (if present) independently of the main
-content.  The `Repository` acts as a configurable factory for `File` objects under some base path.  It will take
+content.  The `Directory` acts as a configurable factory for `File` objects under some base path.  It will take
 care of making sure that configuration defined in parent directories cascades down to files.
 
 The library **does not** convert the file contents into actual markdown - use whichever tool you prefer for doing that.
@@ -18,19 +18,21 @@ Here is some basic example usage.
     
     //define repo at root directory of content, with some global configuration
     //that will filter down to all contained pages/directories
-    $repo = new AC\Servedown\Repository(__DIR__."/blog", 'http://example.com/blog', array(
+    $dir = new AC\Servedown\Directory(__DIR__."/blog", array(
         'file_extensions' => array("md", "markdown", "textile", "txt"),
         'hide_prefixes' => array("_"),
-        'cascade_config' => true,
+        'config_cascade' => true,
+        'config_cascade_blacklist' => array('published'),
         'allow_index' => true,
         'index_file_name' => 'index',
+        'base_url' => 'http://example.com/blog',
     ));
     
     //get a specific file
-    $file = $repo->getFile("2012/using-servedown.md");
+    $file = $dir->getFile("2012/using-servedown.md");
     
     //get directory contents
-    $files = $repo->getFilesInDirectory("2012/");
+    $files = $dir->getFilesInDirectory("2012/");
     
     //get breadcrumb info
     $breadcrumbData = $file->getBreadcrumbData();

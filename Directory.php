@@ -11,22 +11,8 @@ use Symfony\Component\Finder\Finder;
  * @package Servedown
  * @author Evan Villemez
  */
-class Repository
+class Directory extends File
 {
-    /**
-     * The base path to the directory of content.
-     *
-     * @var string
-     */
-    private $basePath;
-
-    /**
-     * Hash of config for how the repo should behave.
-     *
-     * @var string
-     */
-    private $config;
-
     /**
      * Internal cache of directory configs, to avoid hitting
      * the disc too much
@@ -34,6 +20,13 @@ class Repository
      * @var array
      */
     private $dirCache = array();
+    
+    /**
+     * Instance of index file, if present
+     *
+     * @var File
+     */
+    private $indexFile;
     
     /**
      * Construct needs the base directory, and optionally some
@@ -44,17 +37,8 @@ class Repository
      */
     public function __construct($basePath, $config = array())
     {
-        if (!is_dir($basePath)) {
-            throw new \InvalidArgumentException("Repository root must be a directory.");
-        }
-
-        $this->basePath = rtrim($basePath, DIRECTORY_SEPARATOR);
+        parent::__construct($basePath);
         $this->config = array_merge($this->getDefaultConfig(), $config);
-    }
-
-    public function getBasePath()
-    {
-        return $this->basePath;
     }
 
     /**

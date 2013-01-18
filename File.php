@@ -14,14 +14,16 @@ use Symfony\Component\Yaml\Yaml;
  */
 class File
 {
-    private $path;
+    protected $file;
+    protected $path;
+    protected $breadcrumb = array();
+    protected $isDirectory = false;
+    protected $isIndex = false;
+
     private $raw = null;
     private $config = array();
     private $content = null;
     private $loaded = false;
-    private $breadcrumb = array();
-    private $isDirectory = false;
-    private $isIndex = false;
 
     /**
      * Constructor, builds a page object around a path to a real file.
@@ -30,12 +32,12 @@ class File
      */
     public function __construct($info)
     {
-        $this->path = (is_string($info)) ? $info : $info->getRealpath();
-
-        if (!file_exists($this->path)) {
-            throw new \InvalidArgumentException(sprintf("Path does not exist: [%s]!", $path));
+        if (!$info instanceof \SplFileInfo) {
+            $info = new \SplFileInfo($info);
         }
         
+        $this->path = $info->getRealPath();
+
         if (is_dir($this->path)) {
             $this->setIsDirectory(true);
         }
@@ -182,12 +184,12 @@ class File
     {
         $this->isDirectory = (bool) $bool;
     }
-
-    public function getIsIndex()
-    {
-        return $this->isIndex;
-    }
-
+    
+    /**
+     * Set whether or not this file is a directory index file.
+     *
+     * @param boolean $bool 
+     */
     public function setIsIndex($bool)
     {
         $this->isIndex = (bool) $bool;
