@@ -19,7 +19,6 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
     {
         $r = new Directory(__DIR__."/mock_content");
         $expected = array(
-            'title' => "Mock Content",
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
@@ -35,7 +34,6 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
         );
         $r = new Directory(__DIR__."/mock_content", $overrides);
         $expected = array(
-            'title' => "Mock Content",
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',

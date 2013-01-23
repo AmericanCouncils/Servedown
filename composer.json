@@ -1,5 +1,6 @@
 {
     "name": "ac/servedown",
+    "type": "library",
     "description": "A utility library to help serve directories of markdown content on the web.",
     "keywords": ["markdown"],
     "license": "MIT",
@@ -17,6 +18,7 @@
     "target-dir": "AC/Servedown",
     "minimum-stability": "dev",
     "require": {
+        "php": ">5.3.3",
         "symfony/yaml": "2.1.*",
         "symfony/finder": "2.1.*"
     }

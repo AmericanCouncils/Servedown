@@ -18,21 +18,23 @@ Here is some basic example usage.
     
     //define repo at root directory of content, with some global configuration
     //that will filter down to all contained pages/directories
-    $dir = new AC\Servedown\Directory(__DIR__."/blog", array(
+    $repo = new AC\Servedown\Repository(__DIR__."/blog", array(
         'file_extensions' => array("md", "markdown", "textile", "txt"),
         'hide_prefixes' => array("_"),
         'config_cascade' => true,
-        'config_cascade_blacklist' => array('published'),
+        'config_cascade_whitelist' => array('published'),
         'allow_index' => true,
         'index_file_name' => 'index',
         'base_url' => 'http://example.com/blog',
     ));
     
     //get a specific file
-    $file = $dir->getFile("2012/using-servedown.md");
+    $item = $dir->getPath("2012/using-servedown.md");
     
     //get directory contents
-    $files = $dir->getFilesInDirectory("2012/");
+    if ($item->isDirectory()) {
+        $files = $dir->getFiles();
+    }
     
     //get breadcrumb info
     $breadcrumbData = $file->getBreadcrumbData();

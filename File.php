@@ -24,6 +24,7 @@ class File
     private $config = array();
     private $content = null;
     private $loaded = false;
+    private $parent = null;
 
     /**
      * Constructor, builds a page object around a path to a real file.
@@ -36,13 +37,15 @@ class File
             $info = new \SplFileInfo($info);
         }
         
+        if ($info->isDir()) {
+            throw new \InvalidArgumentException(sprintf("Path %s is a directory", $info->getRealPath()));
+        }
+        
         $this->path = $info->getRealPath();
 
-        if (is_dir($this->path)) {
-            $this->setIsDirectory(true);
-        }
     }
-
+    
+    
     public function __toString()
     {
         $this->load();
@@ -71,12 +74,47 @@ class File
 
         return $this->config;
     }
-
+    
+    /**
+     * Set entire configuration array for file.
+     *
+     * @param array $config 
+     */
     public function setConfig(array $config)
     {
         $this->load();
         
         $this->config = $config;
+    }
+    
+    /**
+     * Get the parent directory of this file, if availble
+     *
+     * @return Directory|null
+     */
+    public function getParent()
+    {
+        return $this->parent;
+    }
+    
+    /**
+     * Set the parent directory of this file
+     *
+     * @param Directory $dir 
+     */
+    public function setParent(Directory $dir)
+    {
+        $this->parent = $dir;
+    }
+    
+    /**
+     * Return whether or not this file has a parent directory.
+     *
+     * @return boolean
+     */
+    public function pasParent()
+    {
+        return ($this->parent) ? true : false;
     }
 
     /**
@@ -134,67 +172,16 @@ class File
     }
 
     /**
-     * Return array of breadcrumb data.
-     *
-     * @return array
-     */
-    public function getBreadcrumbData()
-    {
-        $this->load();
-
-        return $this->breadcrumb;
-    }
-
-    /**
-     * Set array of breadcrumb data, format is array of hashes, example below:
-     *
-     *  array(
-     *      'title' => "Human Readable String",
-     *      'url' => "http://example.com"
-     *  )
-     *
-     *
-     * @param array $data 
-     */
-    public function setBreadcrumbData(array $data)
-    {
-        $this->load();
-
-        $this->breadcrumb = $data;
-    }
-
-    /**
-     * Return true/false for if this "page" is actually
-     * a directory index file.
+     * Return true/false for if this file is a directory.  Files always
+     * return false
      *
      * @return boolean
      */
     public function isDirectory()
     {
-        return $this->isDirectory;
+        return false;
     }
     
-    /**
-     * Set whether or not this file is also a directory reference.  This must be
-     * set by the Repository, as it is configurable.
-     *
-     * @param boolean $isDir 
-     */
-    public function setIsDirectory($bool)
-    {
-        $this->isDirectory = (bool) $bool;
-    }
-    
-    /**
-     * Set whether or not this file is a directory index file.
-     *
-     * @param boolean $bool 
-     */
-    public function setIsIndex($bool)
-    {
-        $this->isIndex = (bool) $bool;
-    }
-
     /**
      * This actually loads and parses file contents from disc.  It would probably
      * be much more efficient to implement this in a regex.

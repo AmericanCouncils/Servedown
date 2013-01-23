@@ -82,4 +82,9 @@ EOF;
         $this->assertTrue($f->isDirectory());
         $this->assertEmpty($f->getContent());
     }
+    
+    public function testGetParent()
+    {
+        $f = new File(__DIR__."/mock_content");
+    }
 }

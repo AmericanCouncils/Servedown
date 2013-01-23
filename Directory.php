@@ -6,120 +6,180 @@ use Symfony\Component\Finder\Finder;
 
 /**
  * A root entry point for a markdown content directory.  Serves as a configurable
- * factory for file objects contained within.
+ * factory for file objects contained within.  Will take care of cascading configuration
+ * defined in an index file, if present.
+ *
+ * A directory with an index file is considered a directory with contained files, even though
+ * that index file is technically a file on disc just like any other.
+ *
+ * Directories will cascade their behavioral configuration to contained directories.
  *
  * @package Servedown
  * @author Evan Villemez
  */
 class Directory extends File
 {
-    /**
-     * Internal cache of directory configs, to avoid hitting
-     * the disc too much
-     *
-     * @var array
-     */
-    private $dirCache = array();
-    
-    /**
-     * Instance of index file, if present
-     *
-     * @var File
-     */
-    private $indexFile;
+    private $hasIndex = false;
+    private $indexFile;    
+    private $behaviors;
+    private $containedFiles = array();
     
     /**
      * Construct needs the base directory, and optionally some
      * configuration overrides.
      *
      * @param string $basePath Absolute path to root directory
-     * @param array $config Optional array of configuration overrides
+     * @param array $behavior Optional array of configuration overrides
      */
-    public function __construct($basePath, $config = array())
-    {
-        parent::__construct($basePath);
-        $this->config = array_merge($this->getDefaultConfig(), $config);
-    }
-
-    /**
-     * Factory method for files in a path.  Will check containing
-     * directories to properly cascade configuration.
-     *
-     * @param  string $path Relative path to file from root of repository
-     * @return File
-     */
-    public function getFile($path)
-    {
-        $path = $this->validatePath($path);
-        
-        $file = new File($path);
-        
-        
-        
-        //TODO: load containing directories and merge configs
-
-        return $file;
-    }
-
-    public function getFilesInDirectory($path, $includeIndex = false, $includeHiddenDirs = false)
-    {
-        $file = $this->createFileForPath($path);
-        $files = array();
-
-        foreach ($this->createFinderForDirectory($path) as $file) {
-            $files[] = $this->createFileForPath($file->getRealpath());
+    public function __construct($info, $behaviors = array())
+    {   
+        if (!$info instanceof \SplFileObject) {
+            $info = new \SplFileObject($info);
         }
 
-        return $files;
+        $this->behaviors = array_merge($this->getDefaultBehaviors(), $behaviors);
+        $this->path = $info->getRealPath();
+        
+        //if there's a file at this path...
+        if (!$info->isDir() && !$this->getBehavior('allow_directory_index')) {
+            throw new \InvalidArgumentException(sprintf("This path is not a directory and index files are disallowed."));
+        }
+        
+        //check for index file, optionally override path
+        if (!$info->isDir()) {
+            $this->indexFile = $this->validateIndexFile($info);
+            $this->indexFile->setParent($this);
+            $this->hasIndex = true;
+            $this->path = dirname($this->indexFile->getRealPath());
+        }
+        //or search for an idex file
+        elseif ($this->getBehavior('allow_directory_index', false) && $indexFileName = $this->getBehavior('index_name', false)) {
+            foreach ($this->getBehavior('file_extensions') as $ext) {
+                foreach (scandir($this->path) as $item) {
+                    $indexFilePath = $this->path.DIRECTORY_SEPARATOR.$indexFileName.".".$ext;
+                    if (file_exists($indexFilePath)) {
+                        $this->indexFile = new File($indexFilePath);
+                        $this->indexFile->setParent($this);
+                        $this->hasIndex = true;
+                    }
+                }
+            }
+        }
     }
     
-    /**
-     * This is the default method used to create human readable titles
-     * for breadcrumbs and contained files when no `title` config is present,
-     * override it if need be
-     *
-     * @param string $path 
-     * @return string
-     */
-    public function getDefaultTitle($path)
+    protected function validateIndexFile(\SplFileObject $file)
     {
-        $exp = explode(DIRECTORY_SEPARATOR, $path);
-        $end = end($exp);
-        $exp = explode(".", $end);
-        if (count($exp) > 1) {                
-            array_pop($exp);
+        $filename = $file->getFilename();
+        $dir = dirname($filename);
+        
+        $exp = explode(".", $filename);
+        $ext = end($exp);
+        if (!in_array(strtolower($ext, $this->getBehavior('file_extensions')))) {
+            throw new \InvalidArgumentException(sprintf("The file %s is not a valid directory index file.", $file->getRealPath()));
         }
-        $exp = explode("_", implode("_", $exp));
-        array_walk($exp, function(&$val) {
-            $val = ucfirst(strtolower($val));
-        });
-        return implode(" ", $exp);
+                
+        return new File($file);
     }
-
+    
     public function getConfig()
     {
-        return $this->config;
+        if ($this->indexFile) {
+            return $this->indexFile->getConfig();
+        } else {
+            return parent::getConfig();
+        }
     }
     
     public function setConfig(array $config)
     {
-        $this->config = $config;
+        if ($this->indexFile) {
+            $this->indexFile->setConfig($config);
+        } else {
+            parent::setConfig($config);
+        }
+        
     }
-
-    public function get($key, $default = null)
+        
+    public function hasIndex()
     {
-        return isset($this->config[$key]) ? $this->config[$key] : $default;
+        return $this->hasIndex;
     }
-
-    public function set($key, $val)
+    
+    public function getIndexFile()
     {
-        $this->config[$key] = $val;
+        //todo: return File instance of index file
     }
-
-    protected function getDefaultConfig()
+    
+    /**
+     * Get array of contained files and directories.
+     *
+     * @param boolean $includeIndex Whether or not to include the directory index file, if present
+     * @return array
+     */
+    public function getFiles($includeIndex = false)
+    {
+        $paths = array();
+        $files = array();
+        
+        $finder = $this->createFinderForDirectory($this->path);
+        foreach (iterator_to_array($finder) as $item) {
+            if ($item->isDir()) {
+                $dir = new Directory($item, $this->getBehaviors());
+                $this->processConfigForFile($dir);
+                $dir->setParent($this);
+                $files[] = $dir;
+            } else {
+                $file = new File($info);
+                $this->processConfigForFile($file);
+                $file->setParent($this);
+                $files[] = $file;
+            }
+        }
+        
+        if($includeIndexFile) {
+            $files[] = $this->indexFile;
+        }
+        
+        return $files;
+    }
+    
+    protected function processConfigForFile(File $file)
+    {
+        if ($this->getBehavior('config_cascade', false)) {
+            foreach ($this->getBehavior('config_cascade_whitelist', array()) as $key) {
+                $file->set($key, $this->get($key));
+            }
+        }
+    }
+    
+    public function isDirectory()
+    {
+        return true;
+    }
+    
+    public function getBehaviors()
+    {
+        return $this->behaviors;
+    }
+    
+    public function setBehaviors(array $data)
+    {
+        $this->behaviors = $data;
+    }
+    
+    public function getBehavior($key, $default = null)
+    {
+        return isset($this->behaviors[$key]) ? $this->behaviors[$key] : $default;
+    }
+    
+    public function setBehavior($key, $val)
+    {
+        $this->behaviors[$key] = $val;
+    }
+    
+    protected function getDefaultBehaviors()
     {
         return array(
-            'title' => $this->getDefaultTitle($this->basePath),
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
