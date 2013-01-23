@@ -1,3 +1,9 @@
+# TODO #
+
+* impelement/test ArrayAccess in FileTest
+* test Directory
+* implement and test Repository
+
 # Servedown #
 
 This is a simple little utility to aid in serving markdown content on the web.  It provides code abstractions

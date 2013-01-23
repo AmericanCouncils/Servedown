@@ -12,19 +12,16 @@ use Symfony\Component\Yaml\Yaml;
  * @package Servedown
  * @author Evan Villemez
  */
-class File
+class File implements \ArrayAccess
 {
-    protected $file;
     protected $path;
-    protected $breadcrumb = array();
-    protected $isDirectory = false;
     protected $isIndex = false;
 
     private $raw = null;
     private $config = array();
     private $content = null;
     private $loaded = false;
-    private $parent = null;
+    private $parent = false;
 
     /**
      * Constructor, builds a page object around a path to a real file.
@@ -180,6 +177,16 @@ class File
     public function isDirectory()
     {
         return false;
+    }
+    
+    public function setIsIndex($bool)
+    {
+        $this->isIndex = (bool) $bool;
+    }
+    
+    public function isIndex()
+    {
+        return $this->isIndex;
     }
     
     /**

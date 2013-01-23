@@ -55,36 +55,30 @@ EOF;
         $this->assertSame($expected, $f->getRaw());
     }
 
-    public function testGetAndSetBreadcrumbData()
-    {
-        $f = new File(__DIR__."/mock_content/test.md");
-        $this->assertSame(array(), $f->getBreadcrumbData());
-        $expected = array(
-            'title' => "Foo",
-            'url' => "Foo",
-        );
-        $f->setBreadcrumbData($expected);
-        $this->assertSame($expected, $f->getBreadcrumbData());
-    }
-
     public function testIsDirectory()
     {
         $f = new File(__DIR__."/mock_content/test.md");
         
         $this->assertFalse($f->isDirectory());
-        $f->setIsDirectory(true);
-        $this->assertTrue($f->isDirectory());
-    }
-    
-    public function testGetDirectory()
-    {
-        $f = new File(__DIR__."/mock_content");
-        $this->assertTrue($f->isDirectory());
-        $this->assertEmpty($f->getContent());
     }
     
     public function testGetParent()
     {
-        $f = new File(__DIR__."/mock_content");
+        $f = new File(__DIR__."/mock_content/test.md");
+        $this->assertFalse($f->getParent());
+    }
+    
+    public function testIsIndex()
+    {
+        $f = new File(__DIR__."/mock_content/test.md");
+        $this->assertFalse($f->isIndex());
+        $f->setIsIndex(true);
+        $this->assertTrue($f->isIndex());
+    }
+    
+    public function testExpectDirectoryException()
+    {
+        $this->setExpectedException("InvalidArgumentException");
+        $f = new File(__DIR__."/mock_content/");
     }
 }

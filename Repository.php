@@ -65,6 +65,33 @@ class Repository extends Directory
         });
         return implode(" ", $exp);
     }
+
+    /**
+     * Creates the file for a given path, checking for whether or not it is a 
+     * directory index file.
+     *
+     * @param string $path 
+     * @return string
+     */
+    protected function createFileForPath($path)
+    {
+        $path = (0 === strpos($path, DIRECTORY_SEPARATOR)) ? $this->basePath.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR) : $path;
+        
+        //check for directory index file
+        if (is_dir($path) && $this->get('allow_directory_index', true)) {
+            foreach ($this->get('file_extensions', array()) as $ext) {
+                $p = $path.DIRECTORY_SEPARATOR.$this->get('index_name', 'index').".".$ext;
+                if (file_exists($p)) {
+                    $file = new File($p);
+                    $file->setIsDirectory(true);
+                    return $file;
+                }
+            }
+        }
+
+        return new File($path);
+    }
+
     
     public function getBreadcrumbsForItem()
     {
