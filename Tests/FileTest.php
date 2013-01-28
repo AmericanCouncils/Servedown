@@ -58,16 +58,16 @@ EOF;
     public function testIsDirectory()
     {
         $f = new File(__DIR__."/mock_content/test.md");
-        
+
         $this->assertFalse($f->isDirectory());
     }
-    
+
     public function testGetParent()
     {
         $f = new File(__DIR__."/mock_content/test.md");
         $this->assertFalse($f->getParent());
     }
-    
+
     public function testIsIndex()
     {
         $f = new File(__DIR__."/mock_content/test.md");
@@ -75,10 +75,23 @@ EOF;
         $f->setIsIndex(true);
         $this->assertTrue($f->isIndex());
     }
-    
+
     public function testExpectDirectoryException()
     {
         $this->setExpectedException("InvalidArgumentException");
         $f = new File(__DIR__."/mock_content/");
     }
+
+    public function testConfigAsArray()
+    {
+        $f = new File(__DIR__."/mock_content/test_with_config.md");
+        $this->assertSame($f->get('title'), $f['title']);
+        $this->assertFalse(isset($f['foo']));
+        $f['foo'] = 'bar';
+        $this->assertSame('bar', $f['foo']);
+        $this->assertTrue(isset($f['foo']));
+        unset($f['foo']);
+        $this->assertFalse(isset($f['foo']));
+    }
+
 }

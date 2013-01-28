@@ -10,164 +10,228 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
 
     public function testInstantiate()
     {
-        $r = new Directory(__DIR__."/mock_content");
-        $this->assertNotNull($r);
-        $this->assertTrue($r instanceof Directory);
+        $d = new Directory(__DIR__."/mock_content");
+        $this->assertNotNull($d);
+        $this->assertTrue($d instanceof Directory);
     }
 
-    public function testDefaultConfig()
+    public function testDefaultBehaviors()
     {
-        $r = new Directory(__DIR__."/mock_content");
+        $d = new Directory(__DIR__."/mock_content");
         $expected = array(
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
             'file_extensions' => array('markdown','md','textile','txt')
         );
-        $this->assertSame($expected, $r->getConfig());
+        $this->assertSame($expected, $d->getBehaviors());
     }
 
-    public function testConfigOverrides()
+    public function testConfigBehaviors()
     {
         $overrides = array(
             'file_extensions' => array('md')
         );
-        $r = new Directory(__DIR__."/mock_content", $overrides);
+        $d = new Directory(__DIR__."/mock_content", $overrides);
         $expected = array(
             'allow_directory_index' => true,
             'hidden_directory_prefixes' => array("_"),
             'index_file_name' => 'index',
             'file_extensions' => array('md')
         );
-        $this->assertSame($expected, $r->getConfig());
+        $this->assertSame($expected, $d->getBehaviors());
+    }
+
+    public function testGetAndSetBehavior()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $this->assertTrue($d->getBehavior('allow_directory_index'));
+        $d->setBehavior('allow_directory_index', false);
+        $this->assertFalse($d->getBehavior('allow_directory_index'));
+        $this->assertSame('test', $d->getBehavior('foo', 'test'));
+    }
+
+    public function testGetPath()
+    {
+        $d1 = new Directory(__DIR__."/mock_content/nested");
+        $d2 = new Directory(__DIR__."/mock_content/nested/index.md");
+        $this->assertSame($d1->getPath(), $d2->getPath());
+    }
+
+    public function testExceptionOnInvalidIndex()
+    {
+        $this->setExpectedException("InvalidArgumentException");
+        $d = new Directory(__DIR__."/mock_content/nested/test.md");
+    }
+
+    public function testGetConfig()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $expected = "Default Title";
+        $this->assertSame($expected, $d->get('title', $expected));
+
+        $d = new Directory(__DIR__."/mock_content/nested");
+        $expected = "Example Directory";
+        $this->assertSame($expected, $d->get('title', false));
+    }
+
+    public function testOverridableIndexBehavior()
+    {
+        $d = new Directory(__DIR__."/mock_content/nested", array('allow_index' => false));
+        $expected = "Default Title";
+        $this->assertSame($expected, $d->get('title', $expected));
+        $this->assertFalse($d->hasIndex());
+    }
+
+    public function testGetConfigWithIndex()
+    {
+        $d = new Directory(__DIR__."/mock_content/nested");
+        $this->assertSame("Example Directory", $d->get('title', "Default Title"));
+        $d = new Directory(__DIR__."/mock_content/nested/index.md");
+        $this->assertSame("Example Directory", $d->get('title', "Default Title"));
+    }
+
+    public function testGetContentWithIndex()
+    {
+        $d1 = new Directory(__DIR__."/mock_content");
+        $this->assertNull($d1->getContent());
+
+        $d2 = new Directory(__DIR__."/mock_content/nested");
+
+        $expected =
+<<<END
+# Content #
+
+This directory has content!
+END;
+
+        $this->assertSame($expected, $d2->getContent());
     }
 
     public function testGetAndSetConfig()
     {
-        $r = new Directory(__DIR__."/mock_content");
-        $this->assertTrue($r->get('allow_directory_index'));
-        $r->set('allow_directory_index', false);
-        $this->assertFalse($r->get('allow_directory_index'));
-        $this->assertSame('test', $r->get('foo', 'test'));
+        $f = new Directory(__DIR__."/mock_content/");
+        $this->assertSame(array(), $f->getConfig());
+        $defaultTitle = "nothing";
+        $this->assertSame($defaultTitle, $f->get('title', $defaultTitle));
+
+        $f = new Directory(__DIR__."/mock_content/nested");
+        $this->assertTrue($f->get('title'));
+        $f->set('title', "changed");
+        $this->assertSame('changed', $f->get('title'));
+        $this->assertFalse($f->get('foo', false));
+
+        $f->setConfig(array(
+            'title' => 'changed again',
+            'foo' => true
+        ));
+        $this->assertSame('changed again', $f->get('title'));
+        $this->assertTrue($f->get('foo', false));
     }
 
     public function testGetFile()
     {
-        $r = new Directory(__DIR__."/mock_content");
-        $f = $r->getFile('test.md');
+        $d = new Directory(__DIR__."/mock_content");
+        $f = $d->getFile('test.md');
         $this->assertNotNull($f);
         $this->assertTrue($f instanceof File);
         $this->assertFalse($f->isDirectory());
+        $this->assertFalse($f->isIndex());
     }
 
-    public function testGetFilesInDirectory()
+    public function testGetFiles()
     {
-        $r = new Directory(__DIR__."/mock_content");
-        $files = $r->getFilesInDirectory('nested/');
-        
-        $this->assertSame(5, count($files));
-        
+        $d = new Directory(__DIR__."/mock_content");
+        $files = $d->getFiles();
+        $this->assertSame(3, count($files));
+        $this->assertFalse($d->hasIndex());
         foreach ($files as $file) {
             $this->assertTrue($f instanceof File);
-            $this->assertTrue(file_exists($file->getPath()));
-            if ($file->isDirectory()) {
-                $this->assertTrue(is_dir($file->getPath()));
+            $this->assertTrue($f->hasParent());
+            $this->assertSame($d, $f->getParent());
+            $this->assertFalse($f->isIndex());
+        }
+
+        $nested = $d->getFile("nested");
+        $this->assertTrue($d instanceof Directory);
+        $this->assertTrue($d->isDirectory());
+        $this->assertTrue($d->hasIndex());
+        $files = $nested->getFiles(true);
+        $this->assertSame(5, count($files));
+        foreach ($files as $file) {
+            $this->assertTrue($f instanceof File);
+            $this->assertTrue($f->hasParent());
+            $this->assertSame($nested, $f->getParent());
+        }
+        $f = $nested->getFile('index.md');
+        $this->assertTrue($f->isIndex());
+    }
+
+    public function testIterate()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        foreach ($d as $file) {
+            $this->assertTrue($file instanceof File);
+        }
+    }
+
+    public function testCountable()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $this->assertSame(3, count($d));
+    }
+
+    public function testGetParent()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        foreach ($d as $file) {
+            $this->assertSame($d, $file->getParent());
+        }
+
+        $nested = $d->get('nested');
+        foreach ($nested as $file) {
+            $this->assertSame($nested, $file->getParent());
+        }
+    }
+
+    public function testHasIndex()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $this->assertFalse($d->hasIndex());
+        $nested = $d->getFile('nested');
+        $this->assertTrue($nested->hasIndex());
+    }
+
+    public function testIsIndex()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        foreach ($d as $file) {
+            $this->assertFalse($file->isIndex());
+        }
+        $nested = $d->getFile('nested');
+        foreach ($nested as $file) {
+            if (false !== strpos($file->getPath(), 'index.md')) {
+                $this->assertTrue($file->isIndex());
+            } else {
+                $this->assertFalse($file->isIndex());
             }
         }
     }
     
-    public function testGetDefaultTitle()
+    //start here
+    public function testConfigCascade()
     {
-        $r = new Directory(__DIR__."/mock_content");
-        $this->assertSame("Mock Content", $r->getDefaultTitle(__DIR__."/mock_content.md"));
-        $this->assertSame("Mock Content", $r->getDefaultTitle(__DIR__."/mock_content"));
-        $this->assertSame("Test Path", $r->getDefaultTitle(__DIR__."/test.path.md"));
-        $this->assertSame("Testpath Again", $r->getDefaultTitle(__DIR__."/testPath_again.md"));
-    }
-    
-    public function testIgnoresHiddenDirectories()
-    {
-        $r = new Directory(__DIR__."/mock_content");
-        foreach ($r->getFilesInDirectory(__DIR__."/mock_content") as $file) {
-            $this->assertTrue(false === strpos($file->getPath(), "_hidden"));
-        }
-    }
-    
-    public function testIgnoresFileExtensions()
-    {
-        $r = new Directory(__DIR__."/mock_content");
-        foreach ($r->getFilesInDirectory(__DIR__."/mock_content") as $file) {
-            $this->assertTrue(false === strpos($file->getPath(), ".rtf"));
-        }
-    }
-    
-    public function testIgnoresIndexFile()
-    {
-        $r = new Directory(__DIR__."/mock_content");
-        $files = $r->getFilesInDirectory('nested');
-        $this->assertSame(4, count($files));
-        foreach ($r->getFilesInDirectory(__DIR__."/mock_content") as $file) {
-            $this->assertTrue(false === strpos($file->getPath(), "index"));
-        }
-    }
-        
-    public function testIndexFileIsDirectory()
-    {
-        $r = new Directory(__DIR__."/mock_content");
-        
-        $f1 = $r->getFile('nested/index.md');
-        $this->assertTrue($f1->isDirectory());
-        $this->assertTrue($f1->isIndex());
-        
-        $f2 = $r->getFile('nested');
-        $this->assertTrue($f2->isDirectory());
-        $this->assertTrue($f2->isIndex());
-        
-        $this->assertEquals($f1, $f2);
+        $d = new Directory(__DIR__."/mock_content");
+//        $f = 
+        //WITHOUT Whitelist
+        //test config in contained directory
+        //test config in nested directory
+        //test setting cascading configs
 
-        $f3 = $r->getfile('nested/more');
-        $this->assertTrue($f3->isDirectory());
-        $this->assertFalse($f3->isIndex());
-
+        //WITH Whitelist
+        //test config in contained directory
+        //test config in nested directory
+        //test setting cascading configs
     }
 
-    public function testGetFileWithAbsolutePath()
-    {
-        $r = new Directory(__DIR__."/mock_content");
-        $f1 = $r->getFile('test.md');
-        $f2 = $r->getFile(__DIR__."/mock_content/test.md");
-    }
-    
-    public function testConfigCascadesFromDirectoryIndexFile()
-    {
-        $r = new Directory(__DIR__."/mock_content");
-        $f = new File(__DIR__."/mock_content/nested/test.md");
-        $this->assertTrue($f->get('published'));
-        $f = $r->get('nested/test.md');
-        $this->assertFalse($f->get('published'));
-    }
-    
-    public function testConfigCascadesFromContainedDirectories()
-    {
-        $r = new Directory(__DIR__."/mock_content");
-        $f = new File(__DIR__."/mock_content/nested/more/test.md");
-        $this->assertTrue($f->get('published'));
-        $f = $r->get('nested/more/test.md');
-        $this->assertFalse($f->get('published'));
-    }
-
-    public function testCreatesBreadcrumb()
-    {
-        
-    }
-    
-    public function testCreatesBreadcrumbWithIndexOverride()
-    {
-        
-    }
-    
-    public function testCreatesBreadcrumbWithAbsoluteUrls()
-    {
-        
-    }
 }

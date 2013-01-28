@@ -1,6 +1,8 @@
 # TODO #
 
-* impelement/test ArrayAccess in FileTest
+* fix Directory
+    * properly call parent::__construct() when applicable
+    * reset internal path afterwards if so
 * test Directory
 * implement and test Repository
 

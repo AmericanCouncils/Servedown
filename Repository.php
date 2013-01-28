@@ -12,17 +12,17 @@ namespace AC\Servedown;
 class Repository extends Directory
 {
     private $cache = array();
-    
+
     public function __construct($path, $repoConfig = array(), $dirBehavior = array())
     {
         $f = new \SplFileObject($path);
         if (!$f->isDir()) {
             throw new \InvalidArgumentException(sprintf("Repository roots must be a directory"));
         }
-        
+
         parent::__construct($f);
     }
-    
+
     /**
      * Factory method for files in a path.  Will check containing
      * directories to properly cascade configuration.
@@ -33,13 +33,10 @@ class Repository extends Directory
     public function getPath($path)
     {
         $path = $this->validatePath($path);
-        
-        $file = new File($path);
-        
-        
-        
-        //TODO: load containing directories and merge configs
 
+        $file = new File($path);
+
+        //TODO: load containing directories and merge configs
         return $file;
     }
 
@@ -48,7 +45,7 @@ class Repository extends Directory
      * for breadcrumbs and contained files when no `title` config is present,
      * override it if need be
      *
-     * @param string $path 
+     * @param  string $path
      * @return string
      */
     public function getDefaultTitleForItem($path)
@@ -56,27 +53,28 @@ class Repository extends Directory
         $exp = explode(DIRECTORY_SEPARATOR, $path);
         $end = end($exp);
         $exp = explode(".", $end);
-        if (count($exp) > 1) {                
+        if (count($exp) > 1) {
             array_pop($exp);
         }
         $exp = explode("_", implode("_", $exp));
         array_walk($exp, function(&$val) {
             $val = ucfirst(strtolower($val));
         });
+
         return implode(" ", $exp);
     }
 
     /**
-     * Creates the file for a given path, checking for whether or not it is a 
+     * Creates the file for a given path, checking for whether or not it is a
      * directory index file.
      *
-     * @param string $path 
+     * @param  string $path
      * @return string
      */
     protected function createFileForPath($path)
     {
         $path = (0 === strpos($path, DIRECTORY_SEPARATOR)) ? $this->basePath.DIRECTORY_SEPARATOR.ltrim($path, DIRECTORY_SEPARATOR) : $path;
-        
+
         //check for directory index file
         if (is_dir($path) && $this->get('allow_directory_index', true)) {
             foreach ($this->get('file_extensions', array()) as $ext) {
@@ -84,6 +82,7 @@ class Repository extends Directory
                 if (file_exists($p)) {
                     $file = new File($p);
                     $file->setIsDirectory(true);
+
                     return $file;
                 }
             }
@@ -92,10 +91,9 @@ class Repository extends Directory
         return new File($path);
     }
 
-    
     public function getBreadcrumbsForItem()
     {
-        
+
     }
-    
+
 }

@@ -16,10 +16,10 @@ class File implements \ArrayAccess
 {
     protected $path;
     protected $isIndex = false;
+    protected $config = array();
+    protected $raw = null;
+    protected $content = null;
 
-    private $raw = null;
-    private $config = array();
-    private $content = null;
     private $loaded = false;
     private $parent = false;
 
@@ -33,20 +33,19 @@ class File implements \ArrayAccess
         if (!$info instanceof \SplFileInfo) {
             $info = new \SplFileInfo($info);
         }
-        
+
         if ($info->isDir()) {
             throw new \InvalidArgumentException(sprintf("Path %s is a directory", $info->getRealPath()));
         }
-        
+
         $this->path = $info->getRealPath();
 
     }
-    
-    
+
     public function __toString()
     {
         $this->load();
-        
+
         return $this->content;
     }
 
@@ -71,19 +70,19 @@ class File implements \ArrayAccess
 
         return $this->config;
     }
-    
+
     /**
      * Set entire configuration array for file.
      *
-     * @param array $config 
+     * @param array $config
      */
     public function setConfig(array $config)
     {
         $this->load();
-        
+
         $this->config = $config;
     }
-    
+
     /**
      * Get the parent directory of this file, if availble
      *
@@ -93,17 +92,17 @@ class File implements \ArrayAccess
     {
         return $this->parent;
     }
-    
+
     /**
      * Set the parent directory of this file
      *
-     * @param Directory $dir 
+     * @param Directory $dir
      */
     public function setParent(Directory $dir)
     {
         $this->parent = $dir;
     }
-    
+
     /**
      * Return whether or not this file has a parent directory.
      *
@@ -178,17 +177,61 @@ class File implements \ArrayAccess
     {
         return false;
     }
-    
+
+    /**
+     * Set whether or not this file is also a directory index file.
+     *
+     * @param boolean $bool
+     */
     public function setIsIndex($bool)
     {
         $this->isIndex = (bool) $bool;
     }
-    
+
+    /**
+     * Get whether or not this file is a directory index.
+     *
+     * @return boolean
+     */
     public function isIndex()
     {
         return $this->isIndex;
     }
-    
+
+    /**
+     * @see \ArrayAccess
+     */
+    public function offsetExists($key)
+    {
+        return isset($this->config[$key]);
+    }
+
+    /**
+     * @see \ArrayAccess
+     */
+    public function offsetGet($key)
+    {
+        return $this->get($key);
+    }
+
+    /**
+     * @see \ArrayAccess
+     */
+    public function offsetSet($key, $val)
+    {
+        $this->set($key, $val);
+    }
+
+    /**
+     * @see \ArrayAccess
+     */
+    public function offsetUnset($key)
+    {
+        if (isset($this->config[$key])) {
+            unset($this->config[$key]);
+        }
+    }
+
     /**
      * This actually loads and parses file contents from disc.  It would probably
      * be much more efficient to implement this in a regex.
