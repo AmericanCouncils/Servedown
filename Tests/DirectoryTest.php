@@ -19,9 +19,9 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
     {
         $d = new Directory(__DIR__."/mock_content");
         $expected = array(
-            'allow_directory_index' => true,
+            'allow_index' => true,
             'hidden_directory_prefixes' => array("_"),
-            'index_file_name' => 'index',
+            'index_name' => 'index',
             'file_extensions' => array('markdown','md','textile','txt')
         );
         $this->assertSame($expected, $d->getBehaviors());
@@ -34,9 +34,9 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
         );
         $d = new Directory(__DIR__."/mock_content", $overrides);
         $expected = array(
-            'allow_directory_index' => true,
+            'allow_index' => true,
             'hidden_directory_prefixes' => array("_"),
-            'index_file_name' => 'index',
+            'index_name' => 'index',
             'file_extensions' => array('md')
         );
         $this->assertSame($expected, $d->getBehaviors());
@@ -45,9 +45,9 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
     public function testGetAndSetBehavior()
     {
         $d = new Directory(__DIR__."/mock_content");
-        $this->assertTrue($d->getBehavior('allow_directory_index'));
-        $d->setBehavior('allow_directory_index', false);
-        $this->assertFalse($d->getBehavior('allow_directory_index'));
+        $this->assertTrue($d->getBehavior('allow_index'));
+        $d->setBehavior('allow_index', false);
+        $this->assertFalse($d->getBehavior('allow_index'));
         $this->assertSame('test', $d->getBehavior('foo', 'test'));
     }
 
@@ -138,6 +138,14 @@ END;
         $this->assertFalse($f->isDirectory());
         $this->assertFalse($f->isIndex());
     }
+    
+    public function testGetDirectory()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $f = $d->getFile('nested');
+        $this->assertTrue($f instanceof Directory);
+        $this->assertTrue($f->isDirectory());
+    }
 
     public function testGetFiles()
     {
@@ -153,9 +161,9 @@ END;
         }
 
         $nested = $d->getFile("nested");
-        $this->assertTrue($d instanceof Directory);
-        $this->assertTrue($d->isDirectory());
-        $this->assertTrue($d->hasIndex());
+        $this->assertTrue($nested instanceof Directory);
+        $this->assertTrue($nested->isDirectory());
+        $this->assertTrue($nested->hasIndex());
         $files = $nested->getFiles(true);
         $this->assertSame(5, count($files));
         foreach ($files as $file) {
@@ -188,7 +196,7 @@ END;
             $this->assertSame($d, $file->getParent());
         }
 
-        $nested = $d->get('nested');
+        $nested = $d->getFile('nested');
         foreach ($nested as $file) {
             $this->assertSame($nested, $file->getParent());
         }
@@ -200,8 +208,15 @@ END;
         $this->assertFalse($d->hasIndex());
         $nested = $d->getFile('nested');
         $this->assertTrue($nested->hasIndex());
-    }
 
+        $d = new Directory(__DIR__."/mock_content", array(
+            "allow_index" => false
+        ));
+        $this->assertFalse($d->hasIndex());
+        $nested = $d->getFile('nested');
+        $this->assertFalse($nested->hasIndex());
+    }
+    
     public function testIsIndex()
     {
         $d = new Directory(__DIR__."/mock_content");
@@ -218,20 +233,52 @@ END;
         }
     }
     
-    //start here
+    public function testHiddenPrefixes()
+    {
+        $this->assertTrue(false);
+    }
+    
     public function testConfigCascade()
     {
+        //no whitelist
         $d = new Directory(__DIR__."/mock_content");
-//        $f = 
-        //WITHOUT Whitelist
-        //test config in contained directory
-        //test config in nested directory
-        //test setting cascading configs
-
-        //WITH Whitelist
-        //test config in contained directory
-        //test config in nested directory
-        //test setting cascading configs
+        $f = $d->getFile('test_with_config.md');
+        $this->assertFalse(isset($f['published']));
+        $f = $d->getFile('nested')->getFile('test.md');
+        $this->assertTrue($f['published']);
+        
+        //with whitelist
+        $d = new Directory(__DIR__."/mock_content", array(
+            'config_cascade' => true,
+            'config_cascade_whitelist' => array('published')
+        ));
+        $f = $d->getFile('test_with_config.md');
+        $this->assertFalse(isset($f['published']));
+        $f = $d->getFile('nested')->getFile('test.md');
+        $this->assertFalse($f['published']);
+    }
+    
+    public function testConfigSetWithCascade()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $f = $d->getFile('nested')->getFile('test.md');
+        $this->assertTrue($f->get('published'));
+        
+        $d = new Directory(__DIR__."/mock_content", array(
+            'config_cascade' => true,
+            'config_cascade_whitelist' => array('published')
+        ));
+        $f = $d->getFile('nested')->getFile('test.md');
+        $this->assertTrue($f->get('published'));
+        
+        $d = new Directory(__DIR__."/mock_content", array(
+            'config_cascade' => true,
+            'config_cascade_whitelist' => array('published')
+        ));
+        $f = $d->getFile('nested')->getFile('test.md');
+        $this->assertTrue($f->get('published'));
+        $d->set('published', false);
+        $this->assertFalse($f->get('published'));
     }
 
 }

@@ -32,7 +32,7 @@ Here is some basic example usage.
         'config_cascade' => true,
         'config_cascade_whitelist' => array('published'),
         'allow_index' => true,
-        'index_file_name' => 'index',
+        'index_name' => 'index',
         'base_url' => 'http://example.com/blog',
     ));
     

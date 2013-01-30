@@ -19,8 +19,8 @@ use Symfony\Component\Finder\Finder;
  */
 class Directory extends File implements \IteratorAggregate, \Countable
 {
-    private $hasIndex = false;
     private $indexFile;
+    private $indexFileName;
     private $behaviors;
     private $containedFiles = array();
     private $loaded = false;
@@ -28,6 +28,9 @@ class Directory extends File implements \IteratorAggregate, \Countable
     /**
      * Construct needs the base directory, and optionally some
      * configuration overrides.
+     *
+     * The constructor also takes care of checking for whether or not
+     * there is a directory index file.
      *
      * @param string $basePath Absolute path to root directory
      * @param array  $behavior Optional array of configuration overrides
@@ -40,50 +43,32 @@ class Directory extends File implements \IteratorAggregate, \Countable
 
         $this->behaviors = array_merge($this->getDefaultBehaviors(), $behaviors);
         $this->path = $info->getRealPath();
-
-        //if there's a file at this path...
-        if (!$info->isDir() && !$this->getBehavior('allow_directory_index')) {
-            throw new \InvalidArgumentException(sprintf("This path is not a directory and index files are disallowed."));
-        }
-
-        //check for index file, optionally override path
+        
+        //check for proper index file
         if (!$info->isDir()) {
-            $this->indexFile = $this->validateIndexFile($info);
-            $this->path = dirname($this->indexFile->getRealPath());
-        }
-        //or search for an index file
-        elseif ($this->getBehavior('allow_directory_index', false) && $indexFileName = $this->getBehavior('index_name', false)) {
-            foreach ($this->getBehavior('file_extensions') as $ext) {
-                foreach (scandir($this->path) as $item) {
-                    $indexFilePath = $this->path.DIRECTORY_SEPARATOR.$indexFileName.".".$ext;
-                    if (file_exists($indexFilePath)) {
-                        $this->indexFile = new File($indexFilePath);
-                    }
-                }
+            if (!$this->getBehavior('allow_index', false)) {
+                throw new \InvalidArgumentException(sprintf("This path is not a directory and index files are disallowed."));
             }
+            
+            if ($this->isPathDirectoryIndex($this->path)) {
+                $this->indexFile = new File($this->path);
+            } else {
+                throw new \InvalidArgumentException("Tried creating a directory on a non-index file.");
+            }
+        } elseif ($this->getBehavior('allow_index', false) && $path = $this->findDirectoryIndexPath()) {
+            $this->indexFile = new File($path);
         }
 
         //configure self and index file
         if ($this->indexFile) {
+            $this->path = dirname($this->indexFile->getPath());
             $this->indexFile->setParent($this);
             $this->indexFile->setIsIndex(true);
+            $this->indexFileName = basename($this->indexFile->getPath());
             $this->setConfig($this->indexFile->getConfig());
         }
     }
 
-    protected function validateIndexFile(\SplFileObject $file)
-    {
-        $filename = $file->getFilename();
-        $dir = dirname($filename);
-
-        $exp = explode(".", $filename);
-        $ext = end($exp);
-        if (!in_array(strtolower($ext, $this->getBehavior('file_extensions')))) {
-            throw new \InvalidArgumentException(sprintf("The file %s is not a valid directory index file.", $file->getRealPath()));
-        }
-
-        return new File($file);
-    }
 
     public function getConfig()
     {
@@ -116,9 +101,71 @@ class Directory extends File implements \IteratorAggregate, \Countable
 
     public function getFile($name)
     {
-        $this->loadFiles();
+        $name = rtrim("/", $name);
+        
+        if (!isset($this->containedFiles[$name])) {
+            if ($this->indexFileName && basename($name) === $this->indexFileName) {
+                return $this->indexFile;
+            } else {
+                if (!$this->loadFile($name)) {
+                    return false;
+                }
+            }
+        }
 
-        return isset($this->containedFiles[$name]) ? $this->containedFiles[$name] : false;
+        return $this->containedFiles[$name];
+    }
+    
+    public function hasFile($name)
+    {
+        return ($this->loadFile($name)) ? true : false;
+    }
+
+    protected function loadFile($name)
+    {
+        $name = rtrim('/', $name);
+        $path = $this->path.DIRECTORY_SEPARATOR.$name;
+        
+        if (!file_exists($path)) {
+            return false;
+        }
+        
+        $file = (is_dir($path) || $this->isPathDirectoryIndex($path)) ? new Directory($path, $this->getBehaviors()) : new File($path);
+
+        $this->processConfigForFile($file);
+        $file->setParent($this);        
+        $this->containedFiles[$name] = $file;
+        
+        return true;
+    }
+    
+    protected function findDirectoryIndexPath()
+    {
+        $base = $this->path.DIRECTORY_SEPARATOR.$this->getBehavior('index_name');
+        foreach ($this->getBehavior('file_extensions', array()) as $extension) {
+            $path = $base.".".$extension;
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+        
+        return false;
+    }
+    
+    protected function isPathDirectoryIndex($path)
+    {
+        $fileName = basename($path);
+        $indexName = $this->getBehavior('index_name');
+
+        if (false !== strpos($fileName, $indexName)) {
+            foreach ($this->getBehavior('file_extensions', array()) as $ext) {
+                if ($fileName === $indexName.".".$ext) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -130,8 +177,14 @@ class Directory extends File implements \IteratorAggregate, \Countable
     public function getFiles($includeIndex = false)
     {
         $this->loadFiles();
-
-        return $this->containedFiles;
+        
+        $files = $this->containedFiles;
+        
+        if ($includeIndex) {
+            $files[] = $this->indexFile;
+        }
+        
+        return $files;
     }
 
     protected function loadFiles()
@@ -142,21 +195,7 @@ class Directory extends File implements \IteratorAggregate, \Countable
 
             $finder = $this->createFinderForDirectory($this->path);
             foreach (iterator_to_array($finder) as $item) {
-                if ($item->isDir()) {
-                    $dir = new Directory($item, $this->getBehaviors());
-                    $this->processConfigForFile($dir);
-                    $dir->setParent($this);
-                    $files[basename($dir->getPath())] = $dir;
-                } else {
-                    $file = new File($info);
-                    $this->processConfigForFile($file);
-                    $file->setParent($this);
-                    $files[basename($dir->getPath())] = $file;
-                }
-            }
-
-            if ($includeIndex) {
-                $files[] = $this->indexFile;
+                $this->loadFile($item);
             }
 
             $this->containedFiles = $files;
@@ -213,9 +252,9 @@ class Directory extends File implements \IteratorAggregate, \Countable
     protected function getDefaultBehaviors()
     {
         return array(
-            'allow_directory_index' => true,
+            'allow_index' => true,
             'hidden_directory_prefixes' => array("_"),
-            'index_file_name' => 'index',
+            'index_name' => 'index',
             'file_extensions' => array('markdown','md','textile','txt')
         );
     }
