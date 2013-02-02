@@ -20,7 +20,7 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
         $d = new Directory(__DIR__."/mock_content");
         $expected = array(
             'allow_index' => true,
-            'hidden_directory_prefixes' => array("_"),
+            'hidden_file_prefixes' => array("_"),
             'index_name' => 'index',
             'file_extensions' => array('markdown','md','textile','txt')
         );
@@ -35,7 +35,7 @@ class DirectoryTest extends \PHPUnit_Framework_TestCase
         $d = new Directory(__DIR__."/mock_content", $overrides);
         $expected = array(
             'allow_index' => true,
-            'hidden_directory_prefixes' => array("_"),
+            'hidden_file_prefixes' => array("_"),
             'index_name' => 'index',
             'file_extensions' => array('md')
         );
@@ -116,7 +116,7 @@ END;
         $this->assertSame($defaultTitle, $f->get('title', $defaultTitle));
 
         $f = new Directory(__DIR__."/mock_content/nested");
-        $this->assertTrue($f->get('title'));
+        $this->assertSame("Example Directory", $f->get('title'));
         $f->set('title', "changed");
         $this->assertSame('changed', $f->get('title'));
         $this->assertFalse($f->get('foo', false));
@@ -146,6 +146,14 @@ END;
         $this->assertTrue($f instanceof Directory);
         $this->assertTrue($f->isDirectory());
     }
+    
+    public function testGetFinder()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $f = $d->getFinder();
+        $files = iterator_to_array($f);
+        $this->assertSame(3, count($files));
+    }
 
     public function testGetFiles()
     {
@@ -165,7 +173,7 @@ END;
         $this->assertTrue($nested->isDirectory());
         $this->assertTrue($nested->hasIndex());
         $files = $nested->getFiles(true);
-        $this->assertSame(5, count($files));
+        $this->assertSame(4, count($files));
         foreach ($files as $file) {
             $this->assertTrue($f instanceof File);
             $this->assertTrue($f->hasParent());
@@ -186,7 +194,7 @@ END;
     public function testCountable()
     {
         $d = new Directory(__DIR__."/mock_content");
-        $this->assertSame(3, count($d));
+        $this->assertSame(4, count($d));
     }
 
     public function testGetParent()
@@ -261,15 +269,22 @@ END;
     public function testConfigSetWithCascade()
     {
         $d = new Directory(__DIR__."/mock_content");
-        $f = $d->getFile('nested')->getFile('test.md');
-        $this->assertTrue($f->get('published'));
+        $f1 = $d->getFile('nested')->getFile('test.md');
+        $this->assertTrue($f1->get('published'));
+        $f2 = $d->getFile('nested')->getFile('more')->getFile('test.md');
+        $this->assertTrue($f2->get('published'));
+        $d->set('published', false);
+        $this->assertTrue($f1->get('published'));
+        $this->assertTrue($f2->get('published'));
         
         $d = new Directory(__DIR__."/mock_content", array(
             'config_cascade' => true,
             'config_cascade_whitelist' => array('published')
         ));
         $f = $d->getFile('nested')->getFile('test.md');
-        $this->assertTrue($f->get('published'));
+        $this->assertFalse($f->get('published'));
+        $f2 = $d->getFile('nested')->getFile('more')->getFile('test.md');
+        $this->assertFalse($f2->get('published'));
         
         $d = new Directory(__DIR__."/mock_content", array(
             'config_cascade' => true,

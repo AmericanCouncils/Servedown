@@ -14,6 +14,11 @@ use Symfony\Component\Finder\Finder;
  *
  * Directories will cascade their behavioral configuration to contained directories.
  *
+ * Behaviors are different from Config, if present.  Config is generally values that pertain
+ * in some way to the content of the actual file.  Directory behaviors, on the other hand, determine
+ * how the directory behaves, for example: which types of files should be hidden, which types of files
+ * are allowed to count as a directory index file.
+ *
  * @package Servedown
  * @author Evan Villemez
  */
@@ -65,11 +70,14 @@ class Directory extends File implements \IteratorAggregate, \Countable
             $this->indexFile->setParent($this);
             $this->indexFile->setIsIndex(true);
             $this->indexFileName = basename($this->indexFile->getPath());
+            $this->content = $this->indexFile->getContent();
             $this->setConfig($this->indexFile->getConfig());
         }
     }
 
-
+    /**
+     * {@inheritdoc}
+     */
     public function getConfig()
     {
         if ($this->indexFile) {
@@ -78,30 +86,63 @@ class Directory extends File implements \IteratorAggregate, \Countable
             return parent::getConfig();
         }
     }
+    
+    /**
+     * {@inheritdoc}
+     */
+    public function set($key, $val)
+    {
+        if($this->getBehavior('config_cascade') && in_array($key, $this->getBehavior('config_cascade_whitelist'))) {
+            foreach ($this->containedFiles as $file) {
+                $file->set($key, $val);
+            }
+        }
+        
+        parent::set($key, $val);
+    }
 
+    /**
+     * {@inheritdoc}
+     */
     public function setConfig(array $config)
     {
         if ($this->indexFile) {
             $this->indexFile->setConfig($config);
-        } else {
-            parent::setConfig($config);
         }
-
+        
+        parent::setConfig($config);
     }
 
+    /**
+     * Return whether or not this directory contains an index file.
+     *
+     * @return boolean
+     */
     public function hasIndex()
     {
         return $this->indexFile ? true : false;
     }
-
+    
+    /**
+     * Return instance of index file, if present
+     *
+     * @return File|false
+     */
     public function getIndexFile()
     {
         return $this->indexFile;
     }
-
+    
+    /**
+     * Get contained file by name.  This will return either a Directory or File
+     * instance.
+     *
+     * @param string $name 
+     * @return File|Directory
+     */
     public function getFile($name)
     {
-        $name = rtrim("/", $name);
+        $name = trim($name, '/');
         
         if (!isset($this->containedFiles[$name])) {
             if ($this->indexFileName && basename($name) === $this->indexFileName) {
@@ -116,6 +157,12 @@ class Directory extends File implements \IteratorAggregate, \Countable
         return $this->containedFiles[$name];
     }
     
+    /**
+     * Return whether or not the directory contains the given file.
+     *
+     * @param string $name 
+     * @return boolean
+     */
     public function hasFile($name)
     {
         return ($this->loadFile($name)) ? true : false;
@@ -123,7 +170,12 @@ class Directory extends File implements \IteratorAggregate, \Countable
 
     protected function loadFile($name)
     {
-        $name = rtrim('/', $name);
+        $name = trim($name, '/');
+
+        if (isset($this->containedFiles[$name])) {
+            return true;
+        }
+
         $path = $this->path.DIRECTORY_SEPARATOR.$name;
         
         if (!file_exists($path)) {
@@ -131,9 +183,8 @@ class Directory extends File implements \IteratorAggregate, \Countable
         }
         
         $file = (is_dir($path) || $this->isPathDirectoryIndex($path)) ? new Directory($path, $this->getBehaviors()) : new File($path);
-
         $this->processConfigForFile($file);
-        $file->setParent($this);        
+        $file->setParent($this);
         $this->containedFiles[$name] = $file;
         
         return true;
@@ -142,6 +193,7 @@ class Directory extends File implements \IteratorAggregate, \Countable
     protected function findDirectoryIndexPath()
     {
         $base = $this->path.DIRECTORY_SEPARATOR.$this->getBehavior('index_name');
+        
         foreach ($this->getBehavior('file_extensions', array()) as $extension) {
             $path = $base.".".$extension;
             if (file_exists($path)) {
@@ -190,15 +242,12 @@ class Directory extends File implements \IteratorAggregate, \Countable
     protected function loadFiles()
     {
         if (!$this->loaded) {
-            $paths = array();
-            $files = array();
-
             $finder = $this->createFinderForDirectory($this->path);
-            foreach (iterator_to_array($finder) as $item) {
-                $this->loadFile($item);
+
+            foreach ($finder as $item) {
+                $this->loadFile($item->getFilename());
             }
 
-            $this->containedFiles = $files;
             $this->loaded = true;
         }
     }
@@ -212,48 +261,81 @@ class Directory extends File implements \IteratorAggregate, \Countable
         }
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function isDirectory()
     {
         return true;
     }
-
+    
+    /**
+     * Get array of all directory behaviors.
+     *
+     * @return array
+     */
     public function getBehaviors()
     {
         return $this->behaviors;
     }
 
+    /**
+     * Set directory behaviors.
+     *
+     * @param array $data 
+     */
     public function setBehaviors(array $data)
     {
         $this->behaviors = $data;
     }
 
+    /**
+     * Get value for a specific behavior if present, return a default
+     * value otherwise
+     *
+     * @param string $key 
+     * @param mixed $default 
+     * @return mixed
+     */
     public function getBehavior($key, $default = null)
     {
         return isset($this->behaviors[$key]) ? $this->behaviors[$key] : $default;
     }
 
+    /**
+     * Set value for a specific behavior.
+     *
+     * @param string $key 
+     * @param mixed $val 
+     */
     public function setBehavior($key, $val)
     {
         $this->behaviors[$key] = $val;
     }
-
+    
+    /**
+     * @see \IteratorAggregate
+     */
     public function getIterator()
     {
         return new \ArrayIterator($this->getFiles());
     }
 
+    /**
+     * @see \Countable
+     */
     public function count()
     {
         $this->loadFiles();
 
-        return count($this->files);
+        return count($this->containedFiles);
     }
 
     protected function getDefaultBehaviors()
     {
         return array(
             'allow_index' => true,
-            'hidden_directory_prefixes' => array("_"),
+            'hidden_file_prefixes' => array("_"),
             'index_name' => 'index',
             'file_extensions' => array('markdown','md','textile','txt')
         );
@@ -265,13 +347,16 @@ class Directory extends File implements \IteratorAggregate, \Countable
         $finder->in($path);
 
         //ignore hidden directories
-        foreach ($this->get('hidden_directory_prefixes', array()) as $prefix) {
-            $finder->notName(sprintf("%s*", $prefix));
+        $finder->ignoreDotFiles(true);
+        foreach ($this->getBehavior('hidden_file_prefixes', array()) as $prefix) {
+            $finder->notName("/^".$prefix."/");
         }
+        
+        //TODO: start here - finder rules are wrong, this wont match regular directories
 
         //only get allowed extensions
-        foreach ($this->get('file_extensions', array()) as $ext) {
-            $finder->name(sprintf("*.%s", $ext));
+        foreach ($this->getBehavior('file_extensions', array()) as $ext) {
+            $finder->name("*.{$ext}");
         }
 
         if (!$recurse) {
@@ -279,6 +364,17 @@ class Directory extends File implements \IteratorAggregate, \Countable
         }
 
         return $finder;
+    }
+    
+    /**
+     * Get default file finder, configured according to the directory's behaviors.  You can
+     * use this to get instances of \SplFileInfo, rather than File.
+     *
+     * @return \Symfony\Component\Finder\Finder
+     */
+    public function getFinder()
+    {
+        return $this->createFinderForDirectory($this->path);
     }
 
 }
