@@ -108,7 +108,7 @@ class File implements \ArrayAccess
      *
      * @return boolean
      */
-    public function pasParent()
+    public function hasParent()
     {
         return ($this->parent) ? true : false;
     }
@@ -140,6 +140,18 @@ class File implements \ArrayAccess
         $this->load();
 
         $this->config[$prop] = $val;
+    }
+    
+    /**
+     * Remove a config value
+     *
+     * @param string $key 
+     */
+    public function remove($key)
+    {
+        if (isset($this->config[$key])) {
+            unset($this->config[$key]);
+        }
     }
 
     /**
@@ -227,9 +239,7 @@ class File implements \ArrayAccess
      */
     public function offsetUnset($key)
     {
-        if (isset($this->config[$key])) {
-            unset($this->config[$key]);
-        }
+        $this->remove($key);
     }
 
     /**

@@ -162,23 +162,27 @@ END;
         $this->assertSame(3, count($files));
         $this->assertFalse($d->hasIndex());
         foreach ($files as $file) {
-            $this->assertTrue($f instanceof File);
-            $this->assertTrue($f->hasParent());
-            $this->assertSame($d, $f->getParent());
-            $this->assertFalse($f->isIndex());
+            $this->assertTrue($file instanceof File);
+            $this->assertTrue($file->hasParent());
+            $this->assertSame($d, $file->getParent());
+            $this->assertFalse($file->isIndex());
         }
 
         $nested = $d->getFile("nested");
         $this->assertTrue($nested instanceof Directory);
         $this->assertTrue($nested->isDirectory());
         $this->assertTrue($nested->hasIndex());
-        $files = $nested->getFiles(true);
-        $this->assertSame(4, count($files));
+        $files = $nested->getFiles();
+
+        $this->assertSame(4, count($files));        //HERE: Why does this fail?
         foreach ($files as $file) {
-            $this->assertTrue($f instanceof File);
-            $this->assertTrue($f->hasParent());
-            $this->assertSame($nested, $f->getParent());
+            $this->assertTrue($file instanceof File);
+            $this->assertTrue($file->hasParent());
+            $this->assertSame($nested, $file->getParent());
         }
+        
+        $files = $nested->getFiles(true);
+        $this->assertSame(5, count($files));
         $f = $nested->getFile('index.md');
         $this->assertTrue($f->isIndex());
     }
@@ -194,6 +198,9 @@ END;
     public function testCountable()
     {
         $d = new Directory(__DIR__."/mock_content");
+        $this->assertSame(3, count($d));
+        
+        $d = $d->getFile('nested');
         $this->assertSame(4, count($d));
     }
 
@@ -243,7 +250,13 @@ END;
     
     public function testHiddenPrefixes()
     {
-        $this->assertTrue(false);
+        $d = new Directory(__DIR__."/mock_content");
+        $files = $d->getFiles();
+        $this->assertSame(3, count($files));
+        
+        $d = new Directory(__DIR__."/mock_content", array('hidden_file_prefixes' => array()));
+        $files = $d->getFiles();
+        $this->assertSame(4, count($files));
     }
     
     public function testConfigCascade()
@@ -252,7 +265,9 @@ END;
         $d = new Directory(__DIR__."/mock_content");
         $f = $d->getFile('test_with_config.md');
         $this->assertFalse(isset($f['published']));
-        $f = $d->getFile('nested')->getFile('test.md');
+        $nested = $d->getFile('nested');
+        $this->assertFalse($nested->get('published'));
+        $f = $nested->getFile('test.md');
         $this->assertTrue($f['published']);
         
         //with whitelist
@@ -262,8 +277,10 @@ END;
         ));
         $f = $d->getFile('test_with_config.md');
         $this->assertFalse(isset($f['published']));
-        $f = $d->getFile('nested')->getFile('test.md');
-        $this->assertFalse($f['published']);
+        $d2 = $d->getFile('nested');
+        $this->assertFalse($d2['published']);
+        $f2 = $d2->getFile('test.md');
+        $this->assertFalse($f2['published']);
     }
     
     public function testConfigSetWithCascade()
@@ -288,12 +305,15 @@ END;
         
         $d = new Directory(__DIR__."/mock_content", array(
             'config_cascade' => true,
-            'config_cascade_whitelist' => array('published')
+            'config_cascade_whitelist' => array('published', 'foo')
         ));
         $f = $d->getFile('nested')->getFile('test.md');
-        $this->assertTrue($f->get('published'));
-        $d->set('published', false);
         $this->assertFalse($f->get('published'));
+        $this->assertFalse(isset($f['foo']));
+        $d->set('published', true);
+        $d->set('foo', 'bar');
+        $this->assertTrue($f->get('published'));
+        $this->assertSame('bar', $f['foo']);
     }
 
 }

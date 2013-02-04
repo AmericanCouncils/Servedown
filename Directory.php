@@ -167,28 +167,6 @@ class Directory extends File implements \IteratorAggregate, \Countable
     {
         return ($this->loadFile($name)) ? true : false;
     }
-
-    protected function loadFile($name)
-    {
-        $name = trim($name, '/');
-
-        if (isset($this->containedFiles[$name])) {
-            return true;
-        }
-
-        $path = $this->path.DIRECTORY_SEPARATOR.$name;
-        
-        if (!file_exists($path)) {
-            return false;
-        }
-        
-        $file = (is_dir($path) || $this->isPathDirectoryIndex($path)) ? new Directory($path, $this->getBehaviors()) : new File($path);
-        $this->processConfigForFile($file);
-        $file->setParent($this);
-        $this->containedFiles[$name] = $file;
-        
-        return true;
-    }
     
     protected function findDirectoryIndexPath()
     {
@@ -242,7 +220,7 @@ class Directory extends File implements \IteratorAggregate, \Countable
     protected function loadFiles()
     {
         if (!$this->loaded) {
-            $finder = $this->createFinderForDirectory($this->path);
+            $finder = $this->createFinderForDirectory($this->path, false);
 
             foreach ($finder as $item) {
                 $this->loadFile($item->getFilename());
@@ -252,13 +230,69 @@ class Directory extends File implements \IteratorAggregate, \Countable
         }
     }
 
+    protected function loadFile($name)
+    {
+        $name = trim($name, '/');
+
+        if (isset($this->containedFiles[$name])) {
+            return true;
+        }
+
+        $path = $this->path.DIRECTORY_SEPARATOR.$name;
+        
+        if (!file_exists($path)) {
+            return false;
+        }
+        
+        $file = (is_dir($path) || $this->isPathDirectoryIndex($path)) ? new Directory($path, $this->getBehaviors()) : new File($path);
+        $this->processConfigForFile($file);
+        $file->setParent($this);
+        $this->containedFiles[$name] = $file;
+        
+        return true;
+    }
+
     protected function processConfigForFile(File $file)
     {
         if ($this->getBehavior('config_cascade', false)) {
             foreach ($this->getBehavior('config_cascade_whitelist', array()) as $key) {
-                $file->set($key, $this->get($key));
+                if (isset($this[$key])) {
+                    $file->set($key, $this[$key]);
+                }
             }
         }
+    }
+    
+    protected function createFinderForDirectory($path, $recursive = false)
+    {
+        //ignore certain prefixes
+        $f1 = new Finder();
+        $f1->directories()->in($path)->ignoreDotFiles(true);
+        foreach ($this->getBehavior('hidden_file_prefixes', array()) as $prefix) {
+            $f1->notName("/^".$prefix."/");
+        }
+        
+        //only get files with allowed extensions, ignoring index file
+        $f2 = new Finder();
+        $f2->files()->in($path)->ignoreDotFiles(true);
+        foreach ($this->getBehavior('file_extensions', array()) as $ext) {
+            $f2->name("*.".$ext);
+        }
+        foreach ($this->getBehavior('hidden_file_prefixes', array()) as $prefix) {
+            $f2->notName("/^".$prefix."/");
+        }
+        if ($this->getBehavior('allow_index', false)) {
+            $f2->notName("/".$this->getBehavior('index_name')."/");
+        }
+
+        if (!$recursive) {
+            $f1->depth("== 0");
+            $f2->depth("== 0");
+        }
+        
+        $f1->append($f2);        
+
+        return $f1;
     }
 
     /**
@@ -340,31 +374,6 @@ class Directory extends File implements \IteratorAggregate, \Countable
             'file_extensions' => array('markdown','md','textile','txt')
         );
     }
-
-    protected function createFinderForDirectory($path, $recurse = false)
-    {
-        $finder = new Finder();
-        $finder->in($path);
-
-        //ignore hidden directories
-        $finder->ignoreDotFiles(true);
-        foreach ($this->getBehavior('hidden_file_prefixes', array()) as $prefix) {
-            $finder->notName("/^".$prefix."/");
-        }
-        
-        //TODO: start here - finder rules are wrong, this wont match regular directories
-
-        //only get allowed extensions
-        foreach ($this->getBehavior('file_extensions', array()) as $ext) {
-            $finder->name("*.{$ext}");
-        }
-
-        if (!$recurse) {
-            $finder->depth("== 0");
-        }
-
-        return $finder;
-    }
     
     /**
      * Get default file finder, configured according to the directory's behaviors.  You can
@@ -372,9 +381,9 @@ class Directory extends File implements \IteratorAggregate, \Countable
      *
      * @return \Symfony\Component\Finder\Finder
      */
-    public function getFinder()
+    public function getFinder($recursive = false)
     {
-        return $this->createFinderForDirectory($this->path);
+        return $this->createFinderForDirectory($this->path, $recursive);
     }
 
 }
