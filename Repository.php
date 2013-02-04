@@ -15,12 +15,12 @@ class Repository extends Directory
 
     public function __construct($path, $repoConfig = array(), $dirBehavior = array())
     {
-        $f = new \SplFileObject($path);
+        $f = new \SplFileInfo($path);
         if (!$f->isDir()) {
             throw new \InvalidArgumentException(sprintf("Repository roots must be a directory"));
         }
 
-        parent::__construct($f);
+        parent::__construct($f, $dirBehavior);
     }
 
     /**
@@ -45,11 +45,13 @@ class Repository extends Directory
      * for breadcrumbs and contained files when no `title` config is present,
      * override it if need be
      *
-     * @param  string $path
+     * @param  string|File $path
      * @return string
      */
     public function getDefaultTitleForItem($path)
     {
+        $path = ($path instanceof File) ? $path->getPath() : $path;
+        
         $exp = explode(DIRECTORY_SEPARATOR, $path);
         $end = end($exp);
         $exp = explode(".", $end);
