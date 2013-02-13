@@ -147,6 +147,14 @@ END;
         $this->assertTrue($f->isDirectory());
     }
     
+    public function testGetDirectoryIfIndex()
+    {
+        $d = new Directory(__DIR__."/mock_content");
+        $f = $d->getFile('nested')->getFile('index.md');
+        $this->assertTrue($f instanceof File);
+        $this->assertTrue($f->isIndex());
+    }
+    
     public function testGetFinder()
     {
         $d = new Directory(__DIR__."/mock_content");
@@ -272,7 +280,6 @@ END;
         
         //with whitelist
         $d = new Directory(__DIR__."/mock_content", array(
-            'config_cascade' => true,
             'config_cascade_whitelist' => array('published')
         ));
         $f = $d->getFile('test_with_config.md');
@@ -295,7 +302,6 @@ END;
         $this->assertTrue($f2->get('published'));
         
         $d = new Directory(__DIR__."/mock_content", array(
-            'config_cascade' => true,
             'config_cascade_whitelist' => array('published')
         ));
         $f = $d->getFile('nested')->getFile('test.md');
@@ -304,7 +310,6 @@ END;
         $this->assertFalse($f2->get('published'));
         
         $d = new Directory(__DIR__."/mock_content", array(
-            'config_cascade' => true,
             'config_cascade_whitelist' => array('published', 'foo')
         ));
         $f = $d->getFile('nested')->getFile('test.md');

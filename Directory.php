@@ -92,7 +92,7 @@ class Directory extends File implements \IteratorAggregate, \Countable
      */
     public function set($key, $val)
     {
-        if($this->getBehavior('config_cascade') && in_array($key, $this->getBehavior('config_cascade_whitelist'))) {
+        if(in_array($key, $this->getBehavior('config_cascade_whitelist', array()))) {
             foreach ($this->containedFiles as $file) {
                 $file->set($key, $val);
             }
@@ -254,11 +254,9 @@ class Directory extends File implements \IteratorAggregate, \Countable
 
     protected function processConfigForFile(File $file)
     {
-        if ($this->getBehavior('config_cascade', false)) {
-            foreach ($this->getBehavior('config_cascade_whitelist', array()) as $key) {
-                if (isset($this[$key])) {
-                    $file->set($key, $this[$key]);
-                }
+        foreach ($this->getBehavior('config_cascade_whitelist', array()) as $key) {
+            if (isset($this[$key])) {
+                $file->set($key, $this[$key]);
             }
         }
     }
