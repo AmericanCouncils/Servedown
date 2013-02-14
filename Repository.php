@@ -79,8 +79,23 @@ class Repository extends Directory
         return $file;
     }
 
+    /**
+     * Returns array of breadcrumb data for the specific item.  Data is in the format of
+     * an array of hashes, each of which looks like this:
+     *
+     *      array(
+     *          'title' => 'Title text',   //If the file does not have a title config, a default one based on the file path is used
+     *          'url' => 'url'             //If the repo is configured with a `base_url`, the urls will be absolute, otherwise relative
+     *      );
+     *
+     * @param string|File $item 
+     * @return array
+     */
     public function getBreadcrumbsForItem($item)
     {
+        
+        //TODO: START HERE, MORE TESTS
+        
         $path = ($item instanceof File) ? $item->getPath() : $item;
         $path = $this->getRelativePath($path);
         
@@ -137,16 +152,21 @@ class Repository extends Directory
         return implode(" ", $exp);
     }
     
+    /**
+     * Return the path as it should be relative to the repository root.
+     *
+     * @param string $path 
+     * @return string
+     */
     public function getRelativePath($path)
     {
-        $ds = DIRECTORY_SEPARATOR;
         rtrim($path, "/");
         
-        if (0 === strpos($path, $ds)) {
-            $path = implode($ds, array_diff(explode($ds, $path), explode($ds, $this->getPath())));
+        if (0 !== strpos($path, DIRECTORY_SEPARATOR)) {
+            $path = $this->path.DIRECTORY_SEPARATOR.$path;
         }
         
-        return $path;
+        return substr(realpath($path), strlen($this->getPath()) + 1);
     }
     
 }

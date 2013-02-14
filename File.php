@@ -165,6 +165,17 @@ class File implements \ArrayAccess
 
         return $this->content;
     }
+    
+    /**
+     * Return whether or not the file contains any real content (other than configuration)
+     *
+     * @return boolean
+     */
+    public function hasContent()
+    {
+        $c = $this->getContent();
+        return (!empty($c));
+    }
 
     /**
      * Return the raw data for the file, including the YAML
@@ -265,9 +276,10 @@ class File implements \ArrayAccess
                     $content[] = $line;
                 }
             }
-
+            $c = trim(implode('', $content));
+            
             $this->raw = implode('', $data);
-            $this->content = implode('', $content);
+            $this->content = empty($c) ? null : $c;
             $this->config = !empty($header) ? Yaml::parse(implode('', $header)) : array();
         }
 

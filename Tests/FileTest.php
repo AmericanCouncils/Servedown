@@ -46,6 +46,15 @@ EOF;
         $this->assertSame($expected, $f->getContent());
         $this->assertSame($expected, (string) $f);
     }
+    
+    public function testHasContent()
+    {
+        $f = new File(__DIR__."/mock_content/test.md");
+        $this->assertTrue($f->hasContent());
+        
+        $f = new File(__DIR__."/mock_content/nested/more/empty.md");
+        $this->assertFalse($f->hasContent());
+    }
 
     public function testGetRaw()
     {
