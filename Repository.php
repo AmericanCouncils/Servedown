@@ -54,6 +54,13 @@ class Repository extends Directory
             return $this->cached[$path];
         }
         
+        //maybe doesn't exist?
+        $absolutePath = $this->path.DIRECTORY_SEPARATOR.$path;
+        var_dump($absolutePath);
+        if (!file_exists($absolutePath)) {
+            throw new \Exception("File not found.");
+        }
+        
         //or load the file (plus containing files)
         $items = explode(DIRECTORY_SEPARATOR, $path);
         $filepath = '';
@@ -109,15 +116,23 @@ class Repository extends Directory
             'url' => empty($baseUrl) ? '' : $baseUrl."/"
         );
         
+        if ($path === $this->getRelativePath($this->getPath())) {
+            return $breadcrumbs;
+        }
+        
         //loop through contained paths
         $filepath = '';
         foreach ($items as $item) {
             $filepath .= "/".$item;
             $f = $this->getItem($filepath);
             
-            $urlEnd = ($f->isDirectory()) ? "/" : '';
+            $url = (empty($baseUrl)) ? ltrim($baseUrl.$filepath, "/") : $baseUrl.$filepath;
             
-            $url = (empty($baseUrl)) ? ltrim($baseUrl.$filepath.$urlEnd, "/") : $baseUrl.$filepath.$urlEnd;
+            var_dump($filepath);
+            
+            if ($f->isDirectory()) {
+                rtrim($url, "/")."/";
+            }
             
             $breadcrumbs[] = array(
                 'title' => $f->get('title', $this->getDefaultTitleForItem($f->getPath())),
@@ -166,7 +181,13 @@ class Repository extends Directory
             $path = $this->path.DIRECTORY_SEPARATOR.$path;
         }
         
-        return substr(realpath($path), strlen($this->getPath()) + 1);
+        $return = substr(realpath($path), strlen($this->path) + 1);
+        
+        if(false === $return) {
+            throw new \Exception("Out of bounds.");
+        }
+        
+        return $return;
     }
-    
+
 }

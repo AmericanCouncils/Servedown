@@ -24,6 +24,9 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($expected, $r->getRelativePath(__DIR__.'/mock_content/nested'));
         $this->assertSame($expected, $r->getRelativePath(__DIR__.'/mock_content/nested/more/../'));
         $this->assertSame($expected, $r->getRelativePath('nested/more/../'));
+        var_dump($r->getRelativePath('/'));
+        var_dump($r->getRelativePath($r->getPath()));
+        var_dump($r->getRelativePath('/foo/bar/baz'));
     }
 	
 	public function testGetItem()
@@ -59,6 +62,10 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         $f = $r->getItem('nested/more/../..');
         $this->assertTrue($f instanceof Directory);
         $this->assertFalse($f->hasIndex());
+        
+        $r = new Repository(__DIR__."/mock_content");
+        $this->setExpectedException("Exception");
+        $r->getItem('/foo/bar/baz');
     }
 
     public function testAsDirectory()
