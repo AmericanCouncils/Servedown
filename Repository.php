@@ -45,9 +45,17 @@ class Repository extends Directory
      * @param  string $path Relative path to file from root of repository
      * @return File
      */
-    public function getItem($path)
+    public function getItem($requestedPath)
     {
-        $path = $this->getRelativePath($path);
+        $path = $this->getRelativePath($requestedPath);
+        
+        if(false === $path) {
+            throw new \Exception(sprintf("Requested item is out of bounds: [%s]", $requestedPath));
+        }
+        
+        if('' === $path) {
+            return $this;
+        }
 
         //check the cache first
         if (isset($this->cached[$path])) {
@@ -56,7 +64,6 @@ class Repository extends Directory
         
         //maybe doesn't exist?
         $absolutePath = $this->path.DIRECTORY_SEPARATOR.$path;
-        var_dump($absolutePath);
         if (!file_exists($absolutePath)) {
             throw new \Exception("File not found.");
         }
@@ -99,12 +106,13 @@ class Repository extends Directory
      * @return array
      */
     public function getBreadcrumbsForItem($item)
-    {
-        
-        //TODO: START HERE, MORE TESTS
-        
+    {        
         $path = ($item instanceof File) ? $item->getPath() : $item;
         $path = $this->getRelativePath($path);
+        
+        if(false === $path) {
+            throw new \Exception("Requested item is out of bounds.");
+        }
         
         $items = explode(DIRECTORY_SEPARATOR, $path);
         $baseUrl = (isset($this->repoConfig['base_url'])) ? $this->repoConfig['base_url'] : '';
@@ -116,27 +124,23 @@ class Repository extends Directory
             'url' => empty($baseUrl) ? '' : $baseUrl."/"
         );
         
-        if ($path === $this->getRelativePath($this->getPath())) {
+        //the requested item might be the root, if so the relpath is empty
+        if ('' === $path) {
             return $breadcrumbs;
         }
         
         //loop through contained paths
-        $filepath = '';
+        $filepath = $this->getPath();
+        $itemUrl = empty($baseUrl) ? '' : $baseUrl."/";
         foreach ($items as $item) {
-            $filepath .= "/".$item;
+            $filepath .= DIRECTORY_SEPARATOR.$item;
             $f = $this->getItem($filepath);
-            
-            $url = (empty($baseUrl)) ? ltrim($baseUrl.$filepath, "/") : $baseUrl.$filepath;
-            
-            var_dump($filepath);
-            
-            if ($f->isDirectory()) {
-                rtrim($url, "/")."/";
-            }
+                        
+            $itemUrl .= ($f->isDirectory()) ? $item."/" : $item;
             
             $breadcrumbs[] = array(
                 'title' => $f->get('title', $this->getDefaultTitleForItem($f->getPath())),
-                'url' => $url
+                'url' => $itemUrl
             );
         }
                 
@@ -170,24 +174,32 @@ class Repository extends Directory
     /**
      * Return the path as it should be relative to the repository root.
      *
+     * If it returns false, it means the requested path is not inside this repository,
+     * which is likely an error in most cases.
+     *
      * @param string $path 
-     * @return string
+     * @return string|false
      */
     public function getRelativePath($path)
     {
         rtrim($path, "/");
         
+        //if request path is relative, make it absolute
         if (0 !== strpos($path, DIRECTORY_SEPARATOR)) {
-            $path = $this->path.DIRECTORY_SEPARATOR.$path;
+            $path = realpath($this->path.DIRECTORY_SEPARATOR.$path);
         }
         
-        $return = substr(realpath($path), strlen($this->path) + 1);
+        //resolve any '..'
+        $path = realpath($path);
         
-        if(false === $return) {
-            throw new \Exception("Out of bounds.");
+        //might be location to self
+        if($path === $this->getPath()) {
+            return '';
         }
         
-        return $return;
+        //Get difference in absolute paths, meaning the relative path, relative to the
+        //repository root directory.
+        return substr($path, strlen($this->path) + 1);
     }
 
 }

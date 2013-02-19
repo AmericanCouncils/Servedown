@@ -24,9 +24,9 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($expected, $r->getRelativePath(__DIR__.'/mock_content/nested'));
         $this->assertSame($expected, $r->getRelativePath(__DIR__.'/mock_content/nested/more/../'));
         $this->assertSame($expected, $r->getRelativePath('nested/more/../'));
-        var_dump($r->getRelativePath('/'));
-        var_dump($r->getRelativePath($r->getPath()));
-        var_dump($r->getRelativePath('/foo/bar/baz'));
+        $this->assertFalse($r->getRelativePath('/etc/passwd'));
+        $this->assertSame('', $r->getRelativePath($r->getPath()));
+        $this->assertSame('', $r->getRelativePath(''));
     }
 	
 	public function testGetItem()
@@ -62,6 +62,16 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         $f = $r->getItem('nested/more/../..');
         $this->assertTrue($f instanceof Directory);
         $this->assertFalse($f->hasIndex());
+        
+        $r = new Repository(__DIR__."/mock_content");
+        $f = $r->getItem(__DIR__."/mock_content/nested");
+        $this->assertTrue($f instanceof Directory);
+        $this->assertTrue($f->hasIndex());
+        
+        $r = new Repository(__DIR__."/mock_content");
+        $f = $r->getItem(__DIR__."/mock_content/nested/more/../");
+        $this->assertTrue($f instanceof Directory);
+        $this->assertTrue($f->hasIndex());
         
         $r = new Repository(__DIR__."/mock_content");
         $this->setExpectedException("Exception");
@@ -145,6 +155,28 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
             )
         );
         $this->assertSame($expected, $r->getBreadcrumbsForItem($f));
+        
+        //root item, no base url
+        $r = new Repository(__DIR__."/mock_content");
+        $expected = array(
+            array(
+                'title' => "Mock Content",
+                'url' => '',
+            )
+        );
+        $this->assertSame($expected, $r->getBreadcrumbsForItem($r));
+        
+        //root item with base url
+        $r = new Repository(__DIR__."/mock_content", array(
+            'base_url' => 'http://localhost/foo'
+        ));
+        $expected = array(
+            array(
+                'title' => "Mock Content",
+                'url' => 'http://localhost/foo/',
+            )
+        );
+        $this->assertSame($expected, $r->getBreadcrumbsForItem($r));
     }
 
 }
