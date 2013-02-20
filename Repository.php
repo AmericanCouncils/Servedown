@@ -50,7 +50,7 @@ class Repository extends Directory
         $path = $this->getRelativePath($requestedPath);
         
         if(false === $path) {
-            throw new \Exception(sprintf("Requested item is out of bounds: [%s]", $requestedPath));
+            throw new \OutOfBoundsException(sprintf("Requested item is out of bounds: [%s]", $requestedPath));
         }
         
         if('' === $path) {
@@ -111,7 +111,7 @@ class Repository extends Directory
         $path = $this->getRelativePath($path);
         
         if(false === $path) {
-            throw new \Exception("Requested item is out of bounds.");
+            throw new \OutOfBoundsException("Requested item is out of bounds.");
         }
         
         $items = explode(DIRECTORY_SEPARATOR, $path);

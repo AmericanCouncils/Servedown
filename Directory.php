@@ -138,7 +138,7 @@ class Directory extends File implements \IteratorAggregate, \Countable
      * instance.
      *
      * @param string $name 
-     * @return File|Directory
+     * @return File|Directory|false
      */
     public function getFile($name)
     {

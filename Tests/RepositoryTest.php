@@ -74,7 +74,7 @@ class RepositoryTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($f->hasIndex());
         
         $r = new Repository(__DIR__."/mock_content");
-        $this->setExpectedException("Exception");
+        $this->setExpectedException("OutOfBoundsException");
         $r->getItem('/foo/bar/baz');
     }
 
